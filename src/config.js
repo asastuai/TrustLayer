@@ -36,6 +36,5 @@ export const config = {
 };
 
 if (!config.payToAddress) {
-  console.error("❌ Missing PAY_TO_ADDRESS in .env");
-  process.exit(1);
+  console.warn("⚠️  Missing PAY_TO_ADDRESS — paid endpoints will not work");
 }

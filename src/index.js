@@ -26,38 +26,44 @@ app.use((req, res, next) => {
 });
 
 // ============================================
+// FREE ENDPOINTS — before any payment middleware
+// ============================================
+app.get("/api/v1/health", (req, res) =>
+  res.json({ status: "ok", timestamp: new Date().toISOString() })
+);
+
+// ============================================
 // x402 PAYMENT MIDDLEWARE — ALL 4 SERVICES
 // ============================================
+try {
+  const FACILITATOR_URL = "https://facilitator.x402.org";
+  const facilitatorClient = new HTTPFacilitatorClient({ url: FACILITATOR_URL });
+  const resourceServer = new x402ResourceServer(facilitatorClient)
+    .register(config.network, new ExactEvmScheme());
 
-// Always use the public facilitator (no auth required)
-const FACILITATOR_URL = "https://facilitator.x402.org";
+  const paymentConfig = (price, desc) => ({
+    accepts: [{ scheme: "exact", price, network: config.network, payTo: config.payToAddress, asset: config.usdcAddress }],
+    description: desc,
+  });
 
-const facilitatorClient = new HTTPFacilitatorClient({ url: FACILITATOR_URL });
-const resourceServer = new x402ResourceServer(facilitatorClient)
-  .register(config.network, new ExactEvmScheme());
+  const routes = {
+    "POST /api/v1/skill/scan":     paymentConfig(config.pricing.skillScan,    "Quick security scan of an AI agent skill"),
+    "POST /api/v1/skill/verify":   paymentConfig(config.pricing.skillVerify,  "Deep verification + Verified badge"),
+    "POST /api/v1/qa/test":        paymentConfig(config.pricing.qaQuick,      "Quick QA test suite for an agent"),
+    "POST /api/v1/qa/full":        paymentConfig(config.pricing.qaFull,       "Full safety + accuracy test suite"),
+    "POST /api/v1/qa/adversarial": paymentConfig(config.pricing.qaAdversarial,"Adversarial red-team testing"),
+    "GET /api/v1/sla/report":      paymentConfig(config.pricing.slaReport,    "Detailed SLA report with uptime history"),
+    "POST /api/v1/escrow/create":  paymentConfig(config.pricing.escrowCreate, "Create a ClawVault escrow (centralized beta)"),
+    "POST /api/v1/escrow/dispute": paymentConfig(config.pricing.escrowDispute,"File a dispute on a ClawVault escrow"),
+  };
 
-const paymentConfig = (price, desc) => ({
-  accepts: [{ scheme: "exact", price, network: config.network, payTo: config.payToAddress, asset: config.usdcAddress }],
-  description: desc,
-});
-
-const routes = {
-  // ClawScan
-  "POST /api/v1/skill/scan":    paymentConfig(config.pricing.skillScan,    "Quick security scan of an AI agent skill"),
-  "POST /api/v1/skill/verify":  paymentConfig(config.pricing.skillVerify,  "Deep verification + Verified badge"),
-  // QABot
-  "POST /api/v1/qa/test":       paymentConfig(config.pricing.qaQuick,      "Quick QA test suite for an agent"),
-  "POST /api/v1/qa/full":       paymentConfig(config.pricing.qaFull,       "Full safety + accuracy test suite"),
-  "POST /api/v1/qa/adversarial":paymentConfig(config.pricing.qaAdversarial,"Adversarial red-team testing"),
-  // Sentinel
-  "GET /api/v1/sla/report":     paymentConfig(config.pricing.slaReport,    "Detailed SLA report with uptime history"),
-  // ClawVault
-  "POST /api/v1/escrow/create": paymentConfig(config.pricing.escrowCreate, "Create a ClawVault escrow (centralized beta)"),
-  "POST /api/v1/escrow/dispute":paymentConfig(config.pricing.escrowDispute,"File a dispute on a ClawVault escrow"),
-};
-
-// syncFacilitatorOnStart = false → no crashea en startup si el facilitator no responde
-app.use(paymentMiddleware(routes, resourceServer, undefined, undefined, false));
+  // syncFacilitatorOnStart = false → server never blocks on facilitator at startup
+  app.use(paymentMiddleware(routes, resourceServer, undefined, undefined, false));
+  console.log("✅ x402 payment middleware registered");
+} catch (err) {
+  console.error("⚠️  x402 middleware failed to load — paid endpoints disabled:", err.message);
+  // Server continues running; free endpoints still work
+}
 
 // Routes
 app.use(apiRoutes);
