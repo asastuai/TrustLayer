@@ -7,9 +7,6 @@ export const config = {
   payToAddress: process.env.PAY_TO_ADDRESS,
   baseRpcUrl: process.env.BASE_RPC_URL || "https://mainnet.base.org",
   basescanApiKey: process.env.BASESCAN_API_KEY,
-  // Facilitator: for Base mainnet use CDP facilitator (needs CDP_API_KEY_ID + CDP_API_KEY_SECRET env vars)
-  // OR use the public x402.org facilitator for testnet: https://www.x402.org/facilitator
-  // The CDP facilitator URL is: https://api.cdp.coinbase.com/platform/v2/x402
   facilitatorUrl: process.env.X402_FACILITATOR_URL || "https://api.cdp.coinbase.com/platform/v2/x402",
   usdcAddress: process.env.USDC_BASE_ADDRESS || "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
   escrowContract: process.env.ESCROW_CONTRACT_ADDRESS,
@@ -39,6 +36,5 @@ export const config = {
 };
 
 if (!config.payToAddress) {
-  console.error("❌ Missing PAY_TO_ADDRESS in .env");
-  process.exit(1);
+  console.warn("⚠️  Missing PAY_TO_ADDRESS — paid endpoints will not work");
 }
