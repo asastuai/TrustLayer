@@ -1,0 +1,35 @@
+{
+  "name": "trustlayer",
+  "version": "1.0.0",
+  "description": "The Trust Layer for the Agent Economy — Skill Audit + Agent QA + SLA Monitoring + Escrow. Powered by x402 on Base.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "deploy-token": "node scripts/deploy-token.js",
+    "seed": "node scripts/seed-registry.js",
+    "monitor": "node src/services/sentinel/monitor.js"
+  },
+  "keywords": ["base", "ai-agents", "trust", "security", "audit", "escrow", "x402", "openclaw", "sla"],
+  "license": "MIT",
+  "dependencies": {
+    "@x402/core": "^2.5.0",
+    "@x402/evm": "^2.5.0",
+    "@x402/express": "^2.5.0",
+    "express": "^4.21.0",
+    "better-sqlite3": "^11.0.0",
+    "dotenv": "^16.4.0",
+    "node-cache": "^5.1.2",
+    "cors": "^2.8.5",
+    "helmet": "^8.0.0",
+    "viem": "^2.21.0",
+    "cron": "^3.1.0"
+  },
+  "devDependencies": {
+    "clanker-sdk": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
