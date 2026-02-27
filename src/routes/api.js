@@ -9,6 +9,12 @@ import {
   disputeEscrow, getEscrow, getEscrowsByAddress, getEscrowStats,
 } from "../services/escrow/escrow.js";
 import {
+  getEscrowOnChain, getContractStats, buildCreateEscrowTx,
+  buildMarkDeliveredTx, buildAcceptDeliveryTx, buildDisputeTx,
+  buildReclaimTx, buildClaimByTimeoutTx,
+} from "../services/escrow/onchain.js";
+import { config } from "../config.js";
+import {
   saveSkillScan, lookupSkill, saveQAReport, lookupQAReport,
   getGlobalStats, incrementEscrows,
 } from "../data/registry.js";
@@ -41,8 +47,11 @@ router.get("/api/v1/info", (req, res) => {
       },
       clawvault: {
         description: "Payment Protection — escrow for agent-to-agent transactions",
-        trust_model: "⚠️ CENTRALIZED BETA — TrustLayer operates as custodian during escrow. V2 will use on-chain smart contract. Use for small amounts only.",
-        version: "v1-centralized-beta",
+        trust_model: config.escrowContract
+          ? "On-chain smart contract. Funds held by immutable contract, not by TrustLayer."
+          : "⚠️ Off-chain beta — set ESCROW_CONTRACT_ADDRESS for trustless mode.",
+        contract: config.escrowContract || null,
+        version: config.escrowContract ? "v2-onchain" : "v1-offchain-beta",
       },
     },
     free_endpoints: [
@@ -190,25 +199,73 @@ router.post("/api/v1/sla/register", (req, res) => {
 });
 
 // ============================================
-// 🔄 ESCROW — Payment Protection
+// 🔐 CLAWVAULT — Payment Protection
 // ============================================
 
-router.get("/api/v1/escrow/:id", (req, res) => {
-  const esc = getEscrow(req.params.id);
-  if (!esc) return res.status(404).json({ error: "Escrow not found" });
-  res.json(esc);
+const useOnChain = !!config.escrowContract;
+
+router.get("/api/v1/escrow/mode", (req, res) => {
+  res.json({
+    mode: useOnChain ? "on-chain" : "off-chain-beta",
+    contract: useOnChain ? config.escrowContract : null,
+    trust_model: useOnChain
+      ? "Funds held by immutable smart contract on Base. TrustLayer never custodies USDC."
+      : "⚠️ Centralized beta — TrustLayer operates as custodian. Deploy ClawVault contract for trustless mode.",
+    basescan: useOnChain ? `https://basescan.org/address/${config.escrowContract}` : null,
+  });
+});
+
+router.get("/api/v1/escrow/stats", async (req, res) => {
+  try {
+    if (useOnChain) return res.json(await getContractStats());
+    res.json(getEscrowStats());
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get("/api/v1/escrow/:id", async (req, res) => {
+  try {
+    if (useOnChain) {
+      const esc = await getEscrowOnChain(parseInt(req.params.id));
+      return res.json(esc);
+    }
+    const esc = getEscrow(req.params.id);
+    if (!esc) return res.status(404).json({ error: "Escrow not found" });
+    res.json(esc);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get("/api/v1/escrow/by/:address", (req, res) => {
+  if (useOnChain) {
+    return res.json({
+      hint: "On-chain mode: query Basescan events for your address",
+      basescan: `https://basescan.org/address/${config.escrowContract}#events`,
+      contract: config.escrowContract,
+    });
+  }
   res.json(getEscrowsByAddress(req.params.address));
 });
 
 router.post("/api/v1/escrow/create", (req, res) => {
   try {
-    const { buyer_address, seller_address, amount_usdc, service_description, acceptance_criteria, deadline_hours } = req.body;
-    if (!buyer_address || !seller_address || !amount_usdc || !service_description) {
-      return res.status(400).json({ error: "Required: buyer_address, seller_address, amount_usdc, service_description" });
+    const { buyer_address, seller_address, amount_usdc, service_description, acceptance_criteria, deadline_hours, acceptance_window_hours } = req.body;
+    if (!seller_address || !amount_usdc || !service_description) {
+      return res.status(400).json({ error: "Required: seller_address, amount_usdc, service_description" });
     }
+
+    if (useOnChain) {
+      // Return transaction data for the agent to sign themselves
+      const txData = buildCreateEscrowTx({
+        seller: seller_address,
+        amountUsdc: amount_usdc,
+        serviceDescription: service_description,
+        deadlineHours: deadline_hours || 24,
+        acceptanceWindowHours: acceptance_window_hours || 24,
+      });
+      return res.json(txData);
+    }
+
+    // Off-chain fallback
+    if (!buyer_address) return res.status(400).json({ error: "Off-chain mode requires buyer_address" });
     incrementEscrows();
     const result = createEscrow({
       buyerAddress: buyer_address, sellerAddress: seller_address,
@@ -217,21 +274,19 @@ router.post("/api/v1/escrow/create", (req, res) => {
     });
     res.json({
       ...result,
-      trust_model: "⚠️ ClawVault v1 is a centralized beta. TrustLayer operates as custodian during escrow period. Use for small amounts only. V2 will use on-chain smart contract.",
+      trust_model: "⚠️ Off-chain beta. Deploy ClawVault contract for trustless escrow.",
     });
-  } catch (err) { res.status(400).json({ error: err.message }); }
-});
-
-router.post("/api/v1/escrow/fund", (req, res) => {
-  try {
-    const { escrow_id, deposit_tx } = req.body;
-    res.json(fundEscrow(escrow_id, deposit_tx));
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
 router.post("/api/v1/escrow/deliver", (req, res) => {
   try {
     const { escrow_id, proof } = req.body;
+    if (!escrow_id || !proof) return res.status(400).json({ error: "Required: escrow_id, proof" });
+
+    if (useOnChain) {
+      return res.json(buildMarkDeliveredTx(escrow_id, proof));
+    }
     res.json(deliverEscrow(escrow_id, proof));
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
@@ -239,6 +294,11 @@ router.post("/api/v1/escrow/deliver", (req, res) => {
 router.post("/api/v1/escrow/accept", (req, res) => {
   try {
     const { escrow_id } = req.body;
+    if (!escrow_id) return res.status(400).json({ error: "Required: escrow_id" });
+
+    if (useOnChain) {
+      return res.json(buildAcceptDeliveryTx(escrow_id));
+    }
     res.json(acceptEscrow(escrow_id));
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
@@ -246,8 +306,31 @@ router.post("/api/v1/escrow/accept", (req, res) => {
 router.post("/api/v1/escrow/dispute", (req, res) => {
   try {
     const { escrow_id, address, reason, evidence } = req.body;
-    if (!escrow_id || !address || !reason) return res.status(400).json({ error: "Required: escrow_id, address, reason" });
+    if (!escrow_id || !reason) return res.status(400).json({ error: "Required: escrow_id, reason" });
+
+    if (useOnChain) {
+      return res.json(buildDisputeTx(escrow_id, reason));
+    }
+    if (!address) return res.status(400).json({ error: "Off-chain mode requires address" });
     res.json(disputeEscrow(escrow_id, address, reason, evidence));
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+router.post("/api/v1/escrow/reclaim", (req, res) => {
+  try {
+    const { escrow_id } = req.body;
+    if (!escrow_id) return res.status(400).json({ error: "Required: escrow_id" });
+    if (!useOnChain) return res.status(400).json({ error: "Only available in on-chain mode" });
+    res.json(buildReclaimTx(escrow_id));
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+router.post("/api/v1/escrow/claim-timeout", (req, res) => {
+  try {
+    const { escrow_id } = req.body;
+    if (!escrow_id) return res.status(400).json({ error: "Required: escrow_id" });
+    if (!useOnChain) return res.status(400).json({ error: "Only available in on-chain mode" });
+    res.json(buildClaimByTimeoutTx(escrow_id));
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
