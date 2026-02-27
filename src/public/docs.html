@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>API Docs — TrustLayer</title>
+  <link rel="icon" type="image/png" href="/logo.png" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0f; color: #e2e8f0; font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; }
+    a { color: inherit; text-decoration: none; }
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 20px 40px; border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(10,10,15,0.9); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 100; }
+    .logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; }
+    .logo-icon { width: 32px; height: 32px; object-fit: contain; }
+    .nav-links { display: flex; gap: 24px; font-size: 14px; color: #94a3b8; }
+    .nav-links a:hover { color: #e2e8f0; }
+    .nav-links a.active { color: #a5b4fc; }
+
+    .layout { display: flex; min-height: calc(100vh - 65px); }
+
+    /* SIDEBAR */
+    .sidebar { width: 240px; flex-shrink: 0; border-right: 1px solid rgba(255,255,255,0.06); padding: 32px 20px; position: sticky; top: 65px; height: calc(100vh - 65px); overflow-y: auto; }
+    .sidebar-section { margin-bottom: 28px; }
+    .sidebar-label { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #475569; margin-bottom: 10px; padding-left: 12px; }
+    .sidebar-link { display: block; padding: 7px 12px; border-radius: 8px; font-size: 14px; color: #64748b; transition: all 0.15s; margin-bottom: 2px; }
+    .sidebar-link:hover { background: rgba(255,255,255,0.04); color: #e2e8f0; }
+    .sidebar-link.active { background: rgba(99,102,241,0.12); color: #a5b4fc; }
+    .method-badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-right: 6px; font-family: monospace; }
+    .get { background: rgba(52,211,153,0.15); color: #34d399; }
+    .post { background: rgba(96,165,250,0.15); color: #60a5fa; }
+    .free { background: rgba(52,211,153,0.1); color: #6ee7b7; font-size: 10px; padding: 2px 6px; border-radius: 4px; }
+
+    /* MAIN */
+    .main { flex: 1; padding: 40px 48px; max-width: 860px; }
+    .page-title { font-size: 36px; font-weight: 800; margin-bottom: 8px; }
+    .page-sub { color: #64748b; font-size: 16px; margin-bottom: 40px; line-height: 1.6; }
+
+    .info-box { background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.2); border-radius: 12px; padding: 16px 20px; margin-bottom: 40px; font-size: 14px; color: #a5b4fc; line-height: 1.6; }
+    .info-box strong { color: #c4b5fd; }
+
+    .section { margin-bottom: 56px; }
+    .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .section-icon { font-size: 24px; }
+    .section-title { font-size: 22px; font-weight: 700; }
+
+    .endpoint { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+    .endpoint-header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; cursor: pointer; transition: background 0.15s; }
+    .endpoint-header:hover { background: rgba(255,255,255,0.03); }
+    .endpoint-method { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 6px; font-family: monospace; }
+    .endpoint-path { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 15px; flex: 1; }
+    .endpoint-price { font-size: 13px; font-weight: 600; }
+    .endpoint-desc { padding: 0 20px 20px; font-size: 14px; color: #64748b; line-height: 1.6; }
+    .endpoint-body { padding: 0 20px 20px; border-top: 1px solid rgba(255,255,255,0.05); }
+
+    .param-table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13px; }
+    .param-table th { text-align: left; color: #64748b; font-weight: 600; padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+    .param-table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: top; }
+    .param-name { font-family: monospace; color: #a5b4fc; }
+    .param-type { color: #34d399; font-family: monospace; font-size: 12px; }
+    .param-required { color: #f87171; font-size: 11px; }
+    .param-optional { color: #94a3b8; font-size: 11px; }
+
+    .code-block { background: #0f1117; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 16px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; color: #a5b4fc; overflow-x: auto; margin-top: 12px; line-height: 1.6; }
+    .label { font-size: 12px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 1px; margin-top: 16px; margin-bottom: 6px; }
+
+    .base-url-box { display: flex; align-items: center; gap: 12px; background: #0f1117; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px 20px; margin-bottom: 24px; font-family: monospace; font-size: 14px; }
+    .base-url-label { color: #475569; font-size: 12px; }
+    .base-url-value { color: #a5b4fc; }
+
+    @media (max-width: 768px) { .sidebar { display: none; } .main { padding: 24px 20px; } }
+  </style>
+</head>
+<body>
+  <nav>
+    <a class="logo" href="/">
+      <img class="logo-icon" src="/logo.png" alt="TrustLayer" />
+      TrustLayer
+    </a>
+    <div class="nav-links">
+      <a href="/docs" class="active">API Docs</a>
+      <a href="/status">Live Status</a>
+      <a href="https://github.com/asastuai/TrustLayer" target="_blank">GitHub</a>
+    </div>
+  </nav>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-label">Overview</div>
+        <a class="sidebar-link active" href="#intro">Introduction</a>
+        <a class="sidebar-link" href="#auth">Authentication (x402)</a>
+        <a class="sidebar-link" href="#base">Base URL</a>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">🛡️ ClawScan</div>
+        <a class="sidebar-link" href="#scan"><span class="method-badge post">POST</span>skill/scan</a>
+        <a class="sidebar-link" href="#verify"><span class="method-badge post">POST</span>skill/verify</a>
+        <a class="sidebar-link" href="#lookup-skill"><span class="method-badge get">GET</span>skill/lookup</a>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">🧪 QABot</div>
+        <a class="sidebar-link" href="#qa-test"><span class="method-badge post">POST</span>qa/test</a>
+        <a class="sidebar-link" href="#qa-full"><span class="method-badge post">POST</span>qa/full</a>
+        <a class="sidebar-link" href="#qa-adversarial"><span class="method-badge post">POST</span>qa/adversarial</a>
+        <a class="sidebar-link" href="#qa-lookup"><span class="method-badge get">GET</span>qa/lookup</a>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">📡 Sentinel</div>
+        <a class="sidebar-link" href="#sla-register"><span class="method-badge post">POST</span>sla/register</a>
+        <a class="sidebar-link" href="#sla-live"><span class="method-badge get">GET</span>sla/live</a>
+        <a class="sidebar-link" href="#sla-report"><span class="method-badge get">GET</span>sla/report</a>
+        <a class="sidebar-link" href="#sla-leaderboard"><span class="method-badge get">GET</span>sla/leaderboard</a>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">🔐 ClawVault</div>
+        <a class="sidebar-link" href="#escrow-create"><span class="method-badge post">POST</span>escrow/create</a>
+        <a class="sidebar-link" href="#escrow-fund"><span class="method-badge post">POST</span>escrow/fund</a>
+        <a class="sidebar-link" href="#escrow-deliver"><span class="method-badge post">POST</span>escrow/deliver</a>
+        <a class="sidebar-link" href="#escrow-accept"><span class="method-badge post">POST</span>escrow/accept</a>
+        <a class="sidebar-link" href="#escrow-dispute"><span class="method-badge post">POST</span>escrow/dispute</a>
+        <a class="sidebar-link" href="#escrow-get"><span class="method-badge get">GET</span>escrow/:id</a>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div id="intro">
+        <div class="page-title">API Reference</div>
+        <p class="page-sub">TrustLayer provides trust infrastructure for AI agents via a simple HTTP API. Pay per query using USDC on Base — no API keys, no subscriptions.</p>
+      </div>
+
+      <div class="info-box">
+        <strong>x402 Payments:</strong> Paid endpoints return <code>HTTP 402</code> with payment requirements. Include a signed USDC payment in the <code>X-Payment</code> header on your next request. Any x402-compatible agent can pay automatically. <a href="https://x402.org" target="_blank" style="color:#c4b5fd">Learn more →</a>
+      </div>
+
+      <div id="base" class="section">
+        <div class="base-url-box">
+          <span class="base-url-label">BASE URL</span>
+          <span class="base-url-value">https://trustlayer-production.up.railway.app</span>
+        </div>
+        <div class="base-url-box">
+          <span class="base-url-label">NETWORK</span>
+          <span class="base-url-value">Base Mainnet · eip155:8453 · USDC: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913</span>
+        </div>
+      </div>
+
+      <!-- CLAWSCAN -->
+      <div id="scan" class="section">
+        <div class="section-header">
+          <span class="section-icon">🛡️</span>
+          <div class="section-title">ClawScan — Skill Auditor</div>
+        </div>
+
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="endpoint-method post">POST</span>
+            <span class="endpoint-path">/api/v1/skill/scan</span>
+            <span class="endpoint-price" style="color:#60a5fa">$0.01 USDC</span>
+          </div>
+          <div class="endpoint-desc">Security scan of an AI agent skill. Analyzes content for prompt injection, malware patterns, credential theft, supply chain attacks, and behavioral risks.</div>
+          <div class="endpoint-body">
+            <div class="label">Request Body</div>
+            <table class="param-table">
+              <tr><th>Field</th><th>Type</th><th></th><th>Description</th></tr>
+              <tr><td class="param-name">content</td><td class="param-type">string</td><td class="param-optional">optional</td><td>Raw SKILL.md content to scan</td></tr>
+              <tr><td class="param-name">url</td><td class="param-type">string</td><td class="param-optional">optional</td><td>URL to fetch and scan (if no content)</td></tr>
+              <tr><td class="param-name">skill_name</td><td class="param-type">string</td><td class="param-optional">optional</td><td>Name of the skill</td></tr>
+            </table>
+            <div class="label">Example</div>
+            <div class="code-block">curl -X POST https://trustlayer-production.up.railway.app/api/v1/skill/scan \
+  -H "Content-Type: application/json" \
+  -H "X-Payment: &lt;x402-payment&gt;" \
+  -d '{"url": "https://raw.githubusercontent.com/.../SKILL.md", "skill_name": "my-skill"}'</div>
+          </div>
+        </div>
+
+        <div id="verify" class="endpoint">
+          <div class="endpoint-header">
+            <span class="endpoint-method post">POST</span>
+            <span class="endpoint-path">/api/v1/skill/verify</span>
+            <span class="endpoint-price" style="color:#60a5fa">$2.00 USDC</span>
+          </div>
+          <div class="endpoint-desc">Deep verification scan. Returns a <strong>✅ VERIFIED BY TRUSTLAYER</strong> badge if the skill passes all checks (trust score ≥ 70). Suitable for listing on skill marketplaces.</div>
+        </div>
+
+        <div id="lookup-skill" class="endpoint">
+          <div class="endpoint-header">
+            <span class="endpoint-method get">GET</span>
+            <span class="endpoint-path">/api/v1/skill/lookup?name=&lt;skill-name&gt;</span>
+            <span class="free">FREE</span>
+          </div>
+          <div class="endpoint-desc">Look up the latest scan result for a skill by name. Returns cached results — no payment required.</div>
+        </div>
+      </div>
+
+      <!-- QABOT -->
+      <div id="qa-test" class="section">
+        <div class="section-header">
+          <span class="section-icon">🧪</span>
+          <div class="section-title">QABot — Agent Testing</div>
+        </div>
+
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="endpoint-method post">POST</span>
+            <span class="endpoint-path">/api/v1/qa/test</span>
+            <span class="endpoint-price" style="color:#60a5fa">$0.05 USDC</span>
+          </div>
+          <div class="endpoint-desc">Quick test suite (4 tests): availability, x402 compliance, response format, consistency. Returns a grade (A–F) and shareable report card.</div>
+          <div class="endpoint-body">
+            <div class="label">Request Body</div>
+            <table class="param-table">
+              <tr><th>Field</th><th>Type</th><th></th><th>Description</th></tr>
+              <tr><td class="param-name">target_url</td><td class="param-type">string</td><td class="param-required">required</td><td>Base URL of the agent to test (e.g. https://my-agent.up.railway.app)</td></tr>
+            </table>
+          </div>
+        </div>
+
+        <div id="qa-full" class="endpoint">
+          <div class="endpoint-header">
+            <span class="endpoint-method post">POST</span>
+            <span class="endpoint-path">/api/v1/qa/full</span>
+            <span class="endpoint-price" style="color:#60a5fa">$0.50 USDC</span>
+          </div>
+          <div class="endpoint-desc">Full safety test suite: quick tests + credential leakage detection + PII in error messages. 6 tests total.</div>
+        </div>
+
+        <div id="qa-adversarial" class="endpoint">
+          <div class="endpoint-header">
+            <span class="endpoint-method post">POST</span>
+            <span class="endpoint-path">/api/v1/qa/adversarial</span>
+            <span class="endpoint-price" style="color:#60a5fa">$1.00 USDC</span>
+          </div>
+          <div class="endpoint-desc">Red team testing: all safety tests + prompt injection via params, oversized payload handling, SQL/NoSQL injection, rate limit enforcement. 10 tests total.</div>
+        </div>
+
+        <div id="qa-lookup" class="endpoint">
+          <div class="endpoint-header">
+            <span class="endpoint-method get">GET</span>
+            <span class="endpoint-path">/api/v1/qa/lookup?url=&lt;agent-url&gt;</span>
+            <span class="free">FREE</span>
+          </div>
+          <div class="endpoint-desc">Retrieve the latest QA report for an agent URL. Free — no payment required.</div>
+        </div>
+      </div>
+
+      <!-- SENTINEL -->
+      <div id="sla-register" class="section">
+        <div class="section-header">
+          <span class="section-icon">📡</span>
+          <div class="section-title">Sentinel — SLA Monitor</div>
+        </div>
+
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="endpoint-method post">POST</span>
+            <span class="endpoint-path">/api/v1/sla/register</span>
+            <span class="free">FREE</span>
+          </div>
+          <div class="endpoint-desc">Register a service for monitoring. Sentinel will ping it every 60 seconds and track uptime, latency, and x402 compliance.</div>
+          <div class="endpoint-body">
+            <div class="label">Request Body</div>
+            <table class="param-table">
+              <tr><th>Field</th><th>Type</th><th></th><th>Description</th></tr>
+              <tr><td class="param-name">url</td><td class="param-type">string</td><td class="param-required">required</td><td>URL to monitor</td></tr>
+              <tr><td class="param-name">name</td><td class="param-type">string</td><td class="param-optional">optional</td><td>Display name</td></tr>
+              <tr><td class="param-name">description</td><td class="param-type">string</td><td class="param-optional">optional</td><td>Description of the service</td></tr>
+            </table>
+          </div>
+        </div>
+
+        <div id="sla-live" class="endpoint">
+          <div class="endpoint-header">
+            <span class="endpoint-method get">GET</span>
+            <span class="endpoint-path">/api/v1/sla/live</span>
+            <span class="free">FREE</span>
+          </div>
+          <div class="endpoint-desc">Current status of all monitored services. Returns UP/DOWN, last latency, and x402 compliance for each.</div>
+        </div>
+
+        <div id="sla-report" class="endpoint">
+          <div class="endpoint-header">
+            <span class="endpoint-method get">GET</span>
+            <span class="endpoint-path">/api/v1/sla/report?url=&lt;service-url&gt;</span>
+            <span class="endpoint-price" style="color:#60a5fa">$0.01 USDC</span>
+          </div>
+          <div class="endpoint-desc">Detailed SLA report: uptime 24h/7d/30d, latency percentiles (p50/p95/p99), incident history, SLA grade (A+→F), and x402 compliance rate.</div>
+        </div>
+
+        <div id="sla-leaderboard" class="endpoint">
+          <div class="endpoint-header">
+            <span class="endpoint-method get">GET</span>
+            <span class="endpoint-path">/api/v1/sla/leaderboard</span>
+            <span class="free">FREE</span>
+          </div>
+          <div class="endpoint-desc">Public leaderboard of all monitored services ranked by 7-day uptime. Requires at least 10 pings to appear.</div>
+        </div>
+      </div>
+
+      <!-- CLAWVAULT -->
+      <div id="escrow-create" class="section">
+        <div class="section-header">
+          <span class="section-icon">🔐</span>
+          <div class="section-title">ClawVault — Payment Escrow <span style="font-size:13px;color:#f59e0b;font-weight:500">Centralized Beta</span></div>
+        </div>
+        <div class="info-box" style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.25);color:#fcd34d">
+          ⚠️ ClawVault v1 is a centralized beta. TrustLayer operates as custodian during the escrow period. Use for small amounts only. Smart contract escrow in V2.
+        </div>
+
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="endpoint-method post">POST</span>
+            <span class="endpoint-path">/api/v1/escrow/create</span>
+            <span class="endpoint-price" style="color:#60a5fa">$0.10 USDC</span>
+          </div>
+          <div class="endpoint-desc">Create an escrow agreement between two agents. Returns an escrow ID and instructions for funding.</div>
+          <div class="endpoint-body">
+            <div class="label">Request Body</div>
+            <table class="param-table">
+              <tr><th>Field</th><th>Type</th><th></th><th>Description</th></tr>
+              <tr><td class="param-name">buyer_address</td><td class="param-type">string</td><td class="param-required">required</td><td>EVM address of the buyer</td></tr>
+              <tr><td class="param-name">seller_address</td><td class="param-type">string</td><td class="param-required">required</td><td>EVM address of the seller</td></tr>
+              <tr><td class="param-name">amount_usdc</td><td class="param-type">string</td><td class="param-required">required</td><td>Amount in USDC (e.g. "10.00")</td></tr>
+              <tr><td class="param-name">service_description</td><td class="param-type">string</td><td class="param-required">required</td><td>What the seller will deliver</td></tr>
+              <tr><td class="param-name">acceptance_criteria</td><td class="param-type">string</td><td class="param-optional">optional</td><td>Conditions for release of funds</td></tr>
+              <tr><td class="param-name">deadline_hours</td><td class="param-type">number</td><td class="param-optional">optional</td><td>Hours until auto-refund (default: 24)</td></tr>
+            </table>
+          </div>
+        </div>
+
+        <div id="escrow-fund" class="endpoint">
+          <div class="endpoint-header"><span class="endpoint-method post">POST</span><span class="endpoint-path">/api/v1/escrow/fund</span><span class="free">FREE</span></div>
+          <div class="endpoint-desc">Record that buyer has deposited USDC. Provide the on-chain transaction hash as proof.</div>
+        </div>
+        <div id="escrow-deliver" class="endpoint">
+          <div class="endpoint-header"><span class="endpoint-method post">POST</span><span class="endpoint-path">/api/v1/escrow/deliver</span><span class="free">FREE</span></div>
+          <div class="endpoint-desc">Seller marks service as delivered with proof. Starts the 24h buyer acceptance window.</div>
+        </div>
+        <div id="escrow-accept" class="endpoint">
+          <div class="endpoint-header"><span class="endpoint-method post">POST</span><span class="endpoint-path">/api/v1/escrow/accept</span><span class="free">FREE</span></div>
+          <div class="endpoint-desc">Buyer accepts delivery — triggers USDC release to seller.</div>
+        </div>
+        <div id="escrow-dispute" class="endpoint">
+          <div class="endpoint-header"><span class="endpoint-method post">POST</span><span class="endpoint-path">/api/v1/escrow/dispute</span><span class="endpoint-price" style="color:#60a5fa">$0.50 USDC</span></div>
+          <div class="endpoint-desc">File a dispute. TrustLayer reviews and resolves within 48h. Provide reason and optional evidence.</div>
+        </div>
+        <div id="escrow-get" class="endpoint">
+          <div class="endpoint-header"><span class="endpoint-method get">GET</span><span class="endpoint-path">/api/v1/escrow/:id</span><span class="free">FREE</span></div>
+          <div class="endpoint-desc">Retrieve escrow status by ID. Returns full lifecycle including events.</div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

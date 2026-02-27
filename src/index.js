@@ -34,6 +34,8 @@ app.use((req, res, next) => {
 // ============================================
 app.use(express.static(join(__dirname, "public")));
 app.get("/", (req, res) => res.sendFile(join(__dirname, "public", "index.html")));
+app.get("/docs", (req, res) => res.sendFile(join(__dirname, "public", "docs.html")));
+app.get("/status", (req, res) => res.sendFile(join(__dirname, "public", "status.html")));
 app.get("/api/v1/health", (req, res) =>
   res.json({ status: "ok", timestamp: new Date().toISOString() })
 );
