@@ -5,10 +5,14 @@ import { CronJob } from "cron";
 import { paymentMiddleware } from "@x402/express";
 import { x402ResourceServer, HTTPFacilitatorClient } from "@x402/core/server";
 import { ExactEvmScheme } from "@x402/evm/exact/server";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 import { config } from "./config.js";
 import apiRoutes from "./routes/api.js";
 import { pingAllServices } from "./services/sentinel/sentinel.js";
 import { processExpiredEscrows } from "./services/escrow/escrow.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 
@@ -26,8 +30,10 @@ app.use((req, res, next) => {
 });
 
 // ============================================
-// FREE ENDPOINTS — before any payment middleware
+// STATIC + FREE ENDPOINTS — before payment middleware
 // ============================================
+app.use(express.static(join(__dirname, "public")));
+app.get("/", (req, res) => res.sendFile(join(__dirname, "public", "index.html")));
 app.get("/api/v1/health", (req, res) =>
   res.json({ status: "ok", timestamp: new Date().toISOString() })
 );

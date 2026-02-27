@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TrustLayer — Trust Infrastructure for the Agent Economy</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a0f;
+      color: #e2e8f0;
+      font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+    }
+    a { color: inherit; text-decoration: none; }
+
+    /* NAV */
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 40px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      position: sticky; top: 0;
+      background: rgba(10,10,15,0.85);
+      backdrop-filter: blur(12px);
+      z-index: 100;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; }
+    .logo-icon { width: 32px; height: 32px; background: linear-gradient(135deg, #6366f1, #a855f7); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .nav-links { display: flex; gap: 24px; font-size: 14px; color: #94a3b8; }
+    .nav-links a:hover { color: #e2e8f0; }
+    .nav-cta {
+      background: linear-gradient(135deg, #6366f1, #a855f7);
+      padding: 8px 20px; border-radius: 8px; font-size: 14px; font-weight: 600;
+      transition: opacity 0.2s;
+    }
+    .nav-cta:hover { opacity: 0.85; }
+
+    /* HERO */
+    .hero {
+      text-align: center;
+      padding: 100px 20px 80px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; top: -200px; left: 50%; transform: translateX(-50%);
+      width: 800px; height: 600px;
+      background: radial-gradient(ellipse, rgba(99,102,241,0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.3);
+      color: #a5b4fc; padding: 6px 16px; border-radius: 100px; font-size: 13px;
+      margin-bottom: 28px;
+    }
+    .badge-dot { width: 6px; height: 6px; background: #6ee7b7; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    h1 {
+      font-size: clamp(36px, 6vw, 72px);
+      font-weight: 800; line-height: 1.1;
+      background: linear-gradient(135deg, #e2e8f0 0%, #a5b4fc 50%, #c084fc 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      margin-bottom: 20px;
+    }
+    .subtitle {
+      font-size: clamp(16px, 2vw, 20px);
+      color: #64748b; max-width: 600px; margin: 0 auto 40px;
+      line-height: 1.6;
+    }
+    .hero-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+    .btn-primary {
+      background: linear-gradient(135deg, #6366f1, #a855f7);
+      padding: 14px 28px; border-radius: 10px; font-size: 15px; font-weight: 600;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 0 30px rgba(99,102,241,0.3);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 40px rgba(99,102,241,0.5); }
+    .btn-secondary {
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      padding: 14px 28px; border-radius: 10px; font-size: 15px; font-weight: 600;
+      transition: background 0.2s;
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.09); }
+
+    /* STATS BAR */
+    .stats {
+      display: flex; justify-content: center; gap: 60px;
+      padding: 32px; border-top: 1px solid rgba(255,255,255,0.06);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      flex-wrap: wrap;
+    }
+    .stat { text-align: center; }
+    .stat-value { font-size: 28px; font-weight: 800; background: linear-gradient(135deg, #6366f1, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .stat-label { font-size: 13px; color: #64748b; margin-top: 4px; }
+
+    /* SERVICES */
+    .section { padding: 80px 40px; max-width: 1100px; margin: 0 auto; }
+    .section-tag { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #6366f1; margin-bottom: 12px; }
+    .section-title { font-size: clamp(24px, 4vw, 40px); font-weight: 800; margin-bottom: 12px; }
+    .section-subtitle { color: #64748b; font-size: 16px; margin-bottom: 48px; }
+
+    .services-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
+    .service-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px; padding: 28px;
+      transition: border-color 0.2s, transform 0.2s;
+      position: relative; overflow: hidden;
+    }
+    .service-card:hover { border-color: rgba(99,102,241,0.4); transform: translateY(-3px); }
+    .service-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: var(--accent, linear-gradient(90deg, #6366f1, #a855f7));
+    }
+    .service-icon { font-size: 32px; margin-bottom: 16px; }
+    .service-name { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .service-desc { font-size: 14px; color: #64748b; line-height: 1.6; margin-bottom: 16px; }
+    .service-price {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2);
+      color: #a5b4fc; padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;
+    }
+
+    /* ENDPOINTS */
+    .endpoints { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; overflow: hidden; }
+    .endpoint-row {
+      display: flex; align-items: center; gap: 16px;
+      padding: 14px 24px; border-bottom: 1px solid rgba(255,255,255,0.04);
+      font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+      transition: background 0.15s;
+    }
+    .endpoint-row:last-child { border-bottom: none; }
+    .endpoint-row:hover { background: rgba(255,255,255,0.03); }
+    .method { font-weight: 700; min-width: 44px; font-size: 12px; }
+    .method.get { color: #34d399; }
+    .method.post { color: #60a5fa; }
+    .path { color: #e2e8f0; flex: 1; }
+    .price-tag { color: #a5b4fc; font-size: 12px; }
+    .free-tag { color: #34d399; font-size: 12px; }
+
+    /* HOW IT WORKS */
+    .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; }
+    .step { text-align: center; padding: 24px; }
+    .step-num {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: linear-gradient(135deg, #6366f1, #a855f7);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 18px; margin: 0 auto 16px;
+    }
+    .step-title { font-weight: 700; margin-bottom: 8px; }
+    .step-desc { font-size: 14px; color: #64748b; line-height: 1.6; }
+
+    /* FOOTER */
+    footer {
+      border-top: 1px solid rgba(255,255,255,0.06);
+      padding: 40px;
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: gap;
+      color: #475569; font-size: 14px;
+    }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a:hover { color: #94a3b8; }
+
+    /* LIVE STATUS */
+    .live-bar {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16,185,129,0.2);
+      border-radius: 10px; padding: 16px 24px;
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 48px; font-size: 14px; color: #6ee7b7;
+    }
+    .live-dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; animation: pulse 2s infinite; }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="logo">
+      <div class="logo-icon">🛡️</div>
+      TrustLayer
+    </div>
+    <div class="nav-links">
+      <a href="/api/v1/info">API Docs</a>
+      <a href="/api/v1/sla/live">Live Status</a>
+      <a href="https://github.com/asastuai/TrustLayer" target="_blank">GitHub</a>
+    </div>
+    <a class="nav-cta" href="/api/v1/info">View API →</a>
+  </nav>
+
+  <section class="hero">
+    <div class="badge">
+      <span class="badge-dot"></span>
+      Live on Base Mainnet · x402 Payments
+    </div>
+    <h1>Trust Infrastructure<br />for the Agent Economy</h1>
+    <p class="subtitle">
+      Four essential services for AI agents — skill auditing, QA testing, SLA monitoring, and payment escrow. Pay per query with USDC on Base.
+    </p>
+    <div class="hero-actions">
+      <a class="btn-primary" href="/api/v1/info">Explore the API</a>
+      <a class="btn-secondary" href="https://github.com/asastuai/TrustLayer" target="_blank">View on GitHub</a>
+    </div>
+  </section>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-value">4</div><div class="stat-label">Services in 1 API</div></div>
+    <div class="stat"><div class="stat-value">$0.01</div><div class="stat-label">Starting price (USDC)</div></div>
+    <div class="stat"><div class="stat-value">Base</div><div class="stat-label">Network (eip155:8453)</div></div>
+    <div class="stat"><div class="stat-value">x402</div><div class="stat-label">Payment Protocol</div></div>
+  </div>
+
+  <div class="section">
+    <div class="section-tag">Services</div>
+    <div class="section-title">Everything agents need to trust each other</div>
+    <p class="section-subtitle">A complete trust stack for the autonomous agent economy, accessible via HTTP.</p>
+
+    <div class="live-bar">
+      <span class="live-dot"></span>
+      All systems operational · Sentinel monitoring active
+    </div>
+
+    <div class="services-grid">
+      <div class="service-card" style="--accent: linear-gradient(90deg,#6366f1,#8b5cf6)">
+        <div class="service-icon">🛡️</div>
+        <div class="service-name">ClawScan</div>
+        <div class="service-desc">Static security analysis for AI agent skills. Detects prompt injection, malware, credential theft, and supply chain attacks. Powered by ClawHavoc campaign intelligence.</div>
+        <span class="service-price">from $0.01 USDC</span>
+      </div>
+      <div class="service-card" style="--accent: linear-gradient(90deg,#3b82f6,#6366f1)">
+        <div class="service-icon">🧪</div>
+        <div class="service-name">QABot</div>
+        <div class="service-desc">Automated testing for AI agents. Checks responsiveness, accuracy, consistency, safety, and adversarial robustness. Get a shareable report card for your agent.</div>
+        <span class="service-price">from $0.05 USDC</span>
+      </div>
+      <div class="service-card" style="--accent: linear-gradient(90deg,#10b981,#3b82f6)">
+        <div class="service-icon">📡</div>
+        <div class="service-name">Sentinel</div>
+        <div class="service-desc">SLA monitoring for x402 services. Real-time uptime tracking, latency percentiles, x402 compliance checks, incident detection, and a public leaderboard.</div>
+        <span class="service-price">from $0.01 USDC</span>
+      </div>
+      <div class="service-card" style="--accent: linear-gradient(90deg,#f59e0b,#ef4444)">
+        <div class="service-icon">🔐</div>
+        <div class="service-name">ClawVault</div>
+        <div class="service-desc">Agent-to-agent payment escrow. Create, fund, deliver, and release USDC agreements with dispute resolution. Centralized beta — smart contract in V2.</div>
+        <span class="service-price">from $0.10 USDC · Beta</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" style="padding-top:0">
+    <div class="section-tag">API Reference</div>
+    <div class="section-title">Simple HTTP endpoints</div>
+    <p class="section-subtitle">Free endpoints need no payment. Paid endpoints use x402 — your agent pays automatically.</p>
+
+    <div class="endpoints">
+      <div class="endpoint-row"><span class="method get">GET</span><span class="path">/api/v1/info</span><span class="free-tag">FREE</span></div>
+      <div class="endpoint-row"><span class="method get">GET</span><span class="path">/api/v1/health</span><span class="free-tag">FREE</span></div>
+      <div class="endpoint-row"><span class="method get">GET</span><span class="path">/api/v1/stats</span><span class="free-tag">FREE</span></div>
+      <div class="endpoint-row"><span class="method get">GET</span><span class="path">/api/v1/sla/live</span><span class="free-tag">FREE</span></div>
+      <div class="endpoint-row"><span class="method get">GET</span><span class="path">/api/v1/sla/leaderboard</span><span class="free-tag">FREE</span></div>
+      <div class="endpoint-row"><span class="method post">POST</span><span class="path">/api/v1/skill/scan</span><span class="price-tag">$0.01 USDC</span></div>
+      <div class="endpoint-row"><span class="method post">POST</span><span class="path">/api/v1/skill/verify</span><span class="price-tag">$2.00 USDC</span></div>
+      <div class="endpoint-row"><span class="method post">POST</span><span class="path">/api/v1/qa/test</span><span class="price-tag">$0.05 USDC</span></div>
+      <div class="endpoint-row"><span class="method post">POST</span><span class="path">/api/v1/qa/full</span><span class="price-tag">$0.50 USDC</span></div>
+      <div class="endpoint-row"><span class="method post">POST</span><span class="path">/api/v1/qa/adversarial</span><span class="price-tag">$1.00 USDC</span></div>
+      <div class="endpoint-row"><span class="method get">GET</span><span class="path">/api/v1/sla/report?url=X</span><span class="price-tag">$0.01 USDC</span></div>
+      <div class="endpoint-row"><span class="method post">POST</span><span class="path">/api/v1/escrow/create</span><span class="price-tag">$0.10 USDC</span></div>
+    </div>
+  </div>
+
+  <div class="section" style="padding-top:0">
+    <div class="section-tag">How it works</div>
+    <div class="section-title">Built for agents, usable by anyone</div>
+    <p class="section-subtitle">Standard HTTP + x402 micropayments. No API keys, no accounts, no friction.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-title">Call the endpoint</div>
+        <div class="step-desc">Your agent sends a standard HTTP request to any TrustLayer endpoint.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-title">Get a 402 response</div>
+        <div class="step-desc">Paid endpoints return HTTP 402 with payment requirements — amount, asset, and wallet address.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-title">Pay with USDC</div>
+        <div class="step-desc">Your agent signs a USDC transfer on Base and includes it in the next request header.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-title">Get the result</div>
+        <div class="step-desc">TrustLayer verifies payment and returns the full response. No accounts, no subscriptions.</div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div>© 2026 TrustLayer · Built on Base · Powered by x402</div>
+    <div class="footer-links">
+      <a href="/api/v1/info">API</a>
+      <a href="/api/v1/health">Status</a>
+      <a href="https://github.com/asastuai/TrustLayer" target="_blank">GitHub</a>
+    </div>
+  </footer>
+
+</body>
+</html>
