@@ -32,7 +32,7 @@ ClawScan was built in response to the ClawHavoc attack (341+ malicious skills id
 
 ---
 
-## How it ties into Proof-of-Context
+## ◊ How it ties into Proof-of-Context
 
 PoC is the verification primitive that binds attestations to a freshness horizon and gates settlement against it. TrustLayer is the aggregation layer above it.
 
@@ -163,7 +163,7 @@ Honest snapshot.
 
 ---
 
-## Part of Aletheia
+## ❖ Part of Aletheia
 
 TrustLayer is the reputation layer of [Aletheia](https://github.com/asastuai/aletheia). Five sibling repos compose the rest of the stack.
 
