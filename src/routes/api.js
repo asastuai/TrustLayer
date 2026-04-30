@@ -12,8 +12,20 @@ import {
   saveSkillScan, lookupSkill, saveQAReport, lookupQAReport,
   getGlobalStats, incrementEscrows,
 } from "../data/registry.js";
+import { attest, getPublicKey } from "../utils/poc.js";
 
 const router = Router();
+
+/**
+ * Wrap a JSON response with a PoC attestation. The freshness type varies by
+ * service: ClawScan → f_c, QABot → f_m, Sentinel → f_c, Escrow → f_s.
+ * Consumers verify the operator's signature against the public key returned
+ * by /api/v1/poc/public-key before treating the attestation as load-bearing.
+ */
+async function sendAttested(res, data, endpoint, freshnessType, freshnessHorizonSeconds) {
+  const attested = await attest(data, { endpoint, freshnessType, freshnessHorizonSeconds });
+  res.json(attested);
+}
 
 // ============================================
 // MASTER INFO
@@ -76,12 +88,12 @@ router.get("/api/v1/stats", (req, res) => {
 // 🛡️ CLAWSCAN — Skill Auditor
 // ============================================
 
-router.get("/api/v1/skill/lookup", (req, res) => {
+router.get("/api/v1/skill/lookup", async (req, res) => {
   const { name } = req.query;
   if (!name) return res.status(400).json({ error: "Missing 'name' query param" });
   const result = lookupSkill(name);
   if (!result) return res.json({ skill: name, found: false, message: "No scan on record. Use POST /api/v1/skill/scan." });
-  res.json({ ...result, found: true });
+  await sendAttested(res, { ...result, found: true }, "/api/v1/skill/lookup", "f_c", 86400);
 });
 
 router.post("/api/v1/skill/scan", async (req, res) => {
@@ -98,7 +110,7 @@ router.post("/api/v1/skill/scan", async (req, res) => {
     if (!name) name = "unknown-skill";
     const result = scanSkill(skillContent, name);
     saveSkillScan(name, result, "quick");
-    res.json(result);
+    await sendAttested(res, result, "/api/v1/skill/scan", "f_c", 3600);
   } catch (err) { res.status(500).json({ error: "Scan failed" }); }
 });
 
@@ -116,11 +128,18 @@ router.post("/api/v1/skill/verify", async (req, res) => {
     const result = scanSkill(skillContent, name, { isVerification: true });
     const verified = result.trust_score >= 70;
     saveSkillScan(name, result, "deep", verified);
-    res.json({
-      ...result, verified,
-      badge: verified ? "✅ VERIFIED BY TRUSTLAYER" : null,
-      message: verified ? "Skill passed deep verification." : "Did not pass. Fix findings and resubmit.",
-    });
+    await sendAttested(
+      res,
+      {
+        ...result,
+        verified,
+        badge: verified ? "✅ VERIFIED BY TRUSTLAYER" : null,
+        message: verified ? "Skill passed deep verification." : "Did not pass. Fix findings and resubmit.",
+      },
+      "/api/v1/skill/verify",
+      "f_c",
+      86400 // verified skill state cached 24h
+    );
   } catch (err) { res.status(500).json({ error: "Verification failed" }); }
 });
 
@@ -128,12 +147,12 @@ router.post("/api/v1/skill/verify", async (req, res) => {
 // 🧪 QABOT — Agent Testing
 // ============================================
 
-router.get("/api/v1/qa/lookup", (req, res) => {
+router.get("/api/v1/qa/lookup", async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).json({ error: "Missing 'url' query param" });
   const report = lookupQAReport(url);
   if (!report) return res.json({ target: url, found: false, message: "No test on record. Use POST /api/v1/qa/test." });
-  res.json({ ...report, found: true });
+  await sendAttested(res, { ...report, found: true }, "/api/v1/qa/lookup", "f_m", 3600);
 });
 
 router.post("/api/v1/qa/test", async (req, res) => {
@@ -142,7 +161,7 @@ router.post("/api/v1/qa/test", async (req, res) => {
     if (!target_url) return res.status(400).json({ error: "Provide 'target_url'" });
     const result = await runTests(target_url, "quick");
     saveQAReport(target_url, "quick", result);
-    res.json(result);
+    await sendAttested(res, result, "/api/v1/qa/test", "f_m", 3600);
   } catch (err) { res.status(500).json({ error: "Test failed: " + err.message }); }
 });
 
@@ -152,7 +171,7 @@ router.post("/api/v1/qa/full", async (req, res) => {
     if (!target_url) return res.status(400).json({ error: "Provide 'target_url'" });
     const result = await runTests(target_url, "safety", { paymentHeader: payment_header });
     saveQAReport(target_url, "safety", result);
-    res.json(result);
+    await sendAttested(res, result, "/api/v1/qa/full", "f_m", 3600);
   } catch (err) { res.status(500).json({ error: "Test failed: " + err.message }); }
 });
 
@@ -162,7 +181,7 @@ router.post("/api/v1/qa/adversarial", async (req, res) => {
     if (!target_url) return res.status(400).json({ error: "Provide 'target_url'" });
     const result = await runTests(target_url, "adversarial", { paymentHeader: payment_header });
     saveQAReport(target_url, "adversarial", result);
-    res.json(result);
+    await sendAttested(res, result, "/api/v1/qa/adversarial", "f_m", 3600);
   } catch (err) { res.status(500).json({ error: "Test failed: " + err.message }); }
 });
 
@@ -174,12 +193,12 @@ router.get("/api/v1/sla/live", (req, res) => res.json(getLiveStatus()));
 
 router.get("/api/v1/sla/leaderboard", (req, res) => res.json(getLeaderboard()));
 
-router.get("/api/v1/sla/report", (req, res) => {
+router.get("/api/v1/sla/report", async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).json({ error: "Missing 'url' query param" });
   const sla = getServiceSLA(url);
   if (!sla) return res.json({ url, found: false, message: "Service not monitored yet. Register via POST /api/v1/sla/register." });
-  res.json(sla);
+  await sendAttested(res, sla, "/api/v1/sla/report", "f_c", 60);
 });
 
 router.post("/api/v1/sla/register", (req, res) => {
@@ -203,7 +222,7 @@ router.get("/api/v1/escrow/by/:address", (req, res) => {
   res.json(getEscrowsByAddress(req.params.address));
 });
 
-router.post("/api/v1/escrow/create", (req, res) => {
+router.post("/api/v1/escrow/create", async (req, res) => {
   try {
     const { buyer_address, seller_address, amount_usdc, service_description, acceptance_criteria, deadline_hours } = req.body;
     if (!buyer_address || !seller_address || !amount_usdc || !service_description) {
@@ -215,10 +234,17 @@ router.post("/api/v1/escrow/create", (req, res) => {
       amountUsdc: amount_usdc, serviceDescription: service_description,
       acceptanceCriteria: acceptance_criteria, deadlineHours: deadline_hours || 24,
     });
-    res.json({
-      ...result,
-      trust_model: "⚠️ ClawVault v1 is a centralized beta. TrustLayer operates as custodian during escrow period. Use for small amounts only. V2 will use on-chain smart contract.",
-    });
+    const horizonSeconds = (deadline_hours || 24) * 3600;
+    await sendAttested(
+      res,
+      {
+        ...result,
+        trust_model: "⚠️ ClawVault v1 is a centralized beta. TrustLayer operates as custodian during escrow period. Use for small amounts only. V2 will use on-chain smart contract.",
+      },
+      "/api/v1/escrow/create",
+      "f_s",
+      horizonSeconds
+    );
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
@@ -243,12 +269,38 @@ router.post("/api/v1/escrow/accept", (req, res) => {
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
-router.post("/api/v1/escrow/dispute", (req, res) => {
+router.post("/api/v1/escrow/dispute", async (req, res) => {
   try {
     const { escrow_id, address, reason, evidence } = req.body;
     if (!escrow_id || !address || !reason) return res.status(400).json({ error: "Required: escrow_id, address, reason" });
-    res.json(disputeEscrow(escrow_id, address, reason, evidence));
+    const result = disputeEscrow(escrow_id, address, reason, evidence);
+    await sendAttested(res, result, "/api/v1/escrow/dispute", "f_s", 86400);
   } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// ============================================
+// 🔑 PROOF-OF-CONTEXT — operator public key
+// ============================================
+
+router.get("/api/v1/poc/public-key", async (req, res) => {
+  const publicKey = await getPublicKey();
+  res.json({
+    public_key: publicKey,
+    source_id: process.env.POC_SOURCE_ID || "trustlayer:default",
+    primitive: "Proof-of-Context (Aletheia)",
+    spec: "https://github.com/asastuai/proof-of-context",
+    impl: "https://github.com/asastuai/proof-of-context-impl",
+    freshness_types_emitted: ["f_c", "f_m", "f_s"],
+    notes_per_service: {
+      clawscan: "f_c — when scanned. Cached for 24h on verified, 1h on quick scan.",
+      qabot: "f_m — model version + when tested. Cached 1h.",
+      sentinel: "f_c — uptime sample timing. Horizon 60s.",
+      escrow: "f_s — settlement window. Horizon = deadline_hours.",
+    },
+    note: publicKey === null
+      ? "POC_SIGNING_KEY env var not set. Attestations will be unsigned (still informational)."
+      : "Attestations are Ed25519-signed. Verify against this public key.",
+  });
 });
 
 export default router;
