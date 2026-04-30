@@ -30,6 +30,7 @@
 import { signAsync, getPublicKeyAsync, verifyAsync, etc } from "@noble/ed25519";
 import { sha512 } from "@noble/hashes/sha2";
 import { createHash } from "node:crypto";
+import { buildAnchors } from "./poc-anchors.js";
 
 // noble/ed25519 v2.x: wire sha512 implementation via the etc namespace.
 // Used internally by async signing / verification primitives.
@@ -139,6 +140,11 @@ export async function attest(payload, opts = {}) {
     publicKeyHex = await getPublicKey();
   }
 
+  // Triple-anchor: best-effort fetch of block_height + drand_round when
+  // POC_ENABLE_TRIPLE_ANCHOR is set. Otherwise null. See poc-anchors.js.
+  const anchors = await buildAnchors();
+  anchors.server_timestamp = timestamp;
+
   return {
     ...payload,
     _poc: {
@@ -151,12 +157,7 @@ export async function attest(payload, opts = {}) {
       payload_hash: payloadHash,
       signature: signatureHex, // null if no signing key configured
       public_key: publicKeyHex,
-      // Triple-anchor scaffolding — informational only in this stage.
-      anchors: {
-        server_timestamp: timestamp,
-        block_height: null, // TODO Phase 5: pull from Base RPC
-        drand_round: null, // TODO Phase 5: pull from Drand
-      },
+      anchors,
       // What this attestation does NOT prove. Stated explicitly per the
       // honesty principle of the Aletheia stack.
       scope_disclaimer:
