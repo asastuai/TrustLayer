@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import { CronJob } from "cron";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
@@ -19,8 +20,44 @@ app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false,
 }));
-app.use(cors());
+
+// CORS — restrict to known origins in production via CORS_ALLOWED_ORIGINS.
+const corsAllowlist = (process.env.CORS_ALLOWED_ORIGINS || "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+if (corsAllowlist.length > 0) {
+  app.use(
+    cors({
+      origin: (origin, cb) => {
+        if (!origin || corsAllowlist.includes(origin)) return cb(null, true);
+        return cb(new Error(`CORS rejected: ${origin}`));
+      },
+    })
+  );
+} else {
+  app.use(cors());
+}
+
 app.use(express.json({ limit: "1mb" }));
+
+// Rate limiting on free endpoints. Paid endpoints self-rate via x402 cost.
+const freeLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests. Free endpoints rate-limited to 120/min/IP." },
+});
+app.use("/api/v1/info", freeLimiter);
+app.use("/api/v1/health", freeLimiter);
+app.use("/api/v1/stats", freeLimiter);
+app.use("/api/v1/skill/lookup", freeLimiter);
+app.use("/api/v1/qa/lookup", freeLimiter);
+app.use("/api/v1/sla/live", freeLimiter);
+app.use("/api/v1/sla/leaderboard", freeLimiter);
+app.use("/api/v1/sla/register", freeLimiter);
+app.use("/api/v1/poc/public-key", freeLimiter);
 
 // Logging
 app.use((req, res, next) => {
