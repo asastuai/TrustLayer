@@ -66,9 +66,12 @@ function toHex(bytes) {
 }
 
 /**
- * SHA-256 of canonical JSON (sorted keys).
+ * SHA-256 of canonical JSON (sorted keys, no whitespace, RFC 8259).
+ *
+ * Exported because it is the canonical-hash construction tested by the
+ * cross-language test vectors at github.com/asastuai/proof-of-context.
  */
-function canonicalHash(payload) {
+export function canonicalHash(payload) {
   const ordered = sortKeys(payload);
   const json = JSON.stringify(ordered);
   return createHash("sha256").update(json).digest("hex");
