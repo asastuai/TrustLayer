@@ -44,25 +44,25 @@ Three concrete surfaces.
 
 **3. Escrow uses PoC commitments as release condition.** Settlement gating in practice. If the counterparty's PoC commitment at delivery time has drifted past horizon, the escrow does not release. This is not a metaphor. It is the same mechanic SUR Protocol's A2A dark pool uses for trade settlement, applied to escrowed payments between agents.
 
-The remaining surface (cross-protocol reputation portability — agent reputation built on TrustLayer carrying to other marketplaces) is documented as the next-step integration. Currently TrustLayer is a single-protocol reputation primitive on Base.
+The remaining surface (cross-protocol reputation portability, where agent reputation built on TrustLayer carries to other marketplaces) is documented as the next-step integration. Currently TrustLayer is a single-protocol reputation primitive on Base.
 
 ---
 
 ## The 4 services
 
-### ClawScan — skill auditor
+### ClawScan: skill auditor
 
 Scans OpenClaw / ClawHub skills for malware, prompt injection, credential theft, and supply-chain attacks. Returns a structured safety score plus a PoC-typed attestation signed by the auditor.
 
-### QABot — agent test harness
+### QABot: agent test harness
 
 Tests AI agents for responsiveness, accuracy, safety, and adversarial robustness. Run automated test suites against any x402 service. The "CI/CD for agents" primitive. Each test run produces a PoC commitment over the model version, sampling parameters, and test surface.
 
-### Sentinel — SLA monitor
+### Sentinel: SLA monitor
 
 Pings registered x402 services every 60 seconds. Tracks uptime, latency, reliability. Public leaderboard ranks services by real performance, not claims. Every uptime sample is an `f_c`-typed PoC commitment.
 
-### Escrow — payment escrow
+### Escrow: payment escrow
 
 Escrow contract layer for agent-to-agent transactions. Delivery verification, disputes, auto-resolution. Release is conditional on the counterparty's PoC commitment being within freshness horizon at delivery time. Buyer protection without centralized intermediary.
 
@@ -167,11 +167,11 @@ Honest snapshot.
 
 TrustLayer is the reputation layer of [Aletheia](https://github.com/asastuai/aletheia). Five sibling repos compose the rest of the stack.
 
-- [**Proof-of-Context**](https://github.com/asastuai/proof-of-context) — verification spine. The primitive TrustLayer aggregates.
-- [**SUR Protocol**](https://github.com/asastuai/sur-protocol) — perp DEX. Source of high-frequency PoC commitments from agent trading.
-- [**PayClaw**](https://github.com/asastuai/payclaw) — agent wallet. Holds funds released through TrustLayer's escrow.
-- [**BaseOracle**](https://github.com/asastuai/BaseOracle) — pay-per-query market data. Producer of `f_i`-attested commitments.
-- [**Vigil**](https://github.com/asastuai/vigil) — DeFi intelligence. Producer of risk and MEV signal commitments.
+- [**Proof-of-Context**](https://github.com/asastuai/proof-of-context): verification spine. The primitive TrustLayer aggregates.
+- [**SUR Protocol**](https://github.com/asastuai/sur-protocol): perp DEX. Source of high-frequency PoC commitments from agent trading.
+- [**PayClaw**](https://github.com/asastuai/payclaw): agent wallet. Holds funds released through TrustLayer's escrow.
+- [**BaseOracle**](https://github.com/asastuai/BaseOracle): pay-per-query market data. Producer of `f_i`-attested commitments.
+- [**Vigil**](https://github.com/asastuai/vigil): DeFi intelligence. Producer of risk and MEV signal commitments.
 
 ---
 
@@ -182,3 +182,5 @@ MIT. See [LICENSE](LICENSE).
 ---
 
 Built by [Juan Cruz Maisu](https://github.com/asastuai). Buenos Aires, Argentina.
+
+Juan Cruz Maisú ♥
