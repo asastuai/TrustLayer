@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TrustLayer · x402 Bootstrap Payment</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #fafafa;
+    color: #1a1a1a;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    max-width: 540px;
+    width: 100%;
+    background: white;
+    padding: 32px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  h1 { font-size: 22pt; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 4pt; }
+  .sub { color: #666; font-size: 11pt; margin-bottom: 24pt; }
+  .row { margin: 16pt 0; padding: 12pt; background: #f4f4f4; border-radius: 4px; font-family: 'SF Mono', monospace; font-size: 9.5pt; word-break: break-all; }
+  .label { font-weight: 600; color: #333; margin-bottom: 4pt; font-family: 'Inter', sans-serif; font-size: 10pt; }
+  button {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    margin: 12px 0;
+    background: #1a1a1a;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 11pt;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.secondary { background: white; color: #1a1a1a; border: 1px solid #ccc; }
+  #log {
+    margin-top: 16pt;
+    padding: 12pt;
+    background: #1a1a1a;
+    color: #d4d4d4;
+    font-family: 'SF Mono', monospace;
+    font-size: 9pt;
+    border-radius: 4px;
+    max-height: 360px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+  }
+  .ok { color: #6dd66d; }
+  .err { color: #ff6b6b; }
+  .warn { color: #ffd166; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>TrustLayer · x402 Bootstrap</h1>
+  <p class="sub">Triggers one paid call ($0.01 USDC) against the ClawScan endpoint to bootstrap CDP Facilitator + Bazaar discovery. Phantom signs the EIP-3009 authorization. Single-purpose page.</p>
+
+  <div class="row">
+    <div class="label">Endpoint</div>
+    POST https://trustlayer-production.up.railway.app/api/v1/skill/scan
+  </div>
+
+  <div class="row">
+    <div class="label">Cost</div>
+    $0.01 USDC on Base (eip155:8453)
+  </div>
+
+  <div class="row">
+    <div class="label">PayTo</div>
+    0x7c7Faf397dAC2a9Ae6FD902B47e36810913ca644
+  </div>
+
+  <button id="connectBtn">1. Connect Phantom (EVM)</button>
+  <button id="payBtn" disabled>2. Pay and trigger ClawScan</button>
+
+  <div id="log">// log will appear here\n</div>
+</div>
+
+<script type="module">
+import { createWalletClient, custom } from "https://esm.sh/viem@2";
+import { base } from "https://esm.sh/viem@2/chains";
+import { wrapFetchWithPayment } from "https://esm.sh/x402-fetch@1";
+
+const log = document.getElementById("log");
+const connectBtn = document.getElementById("connectBtn");
+const payBtn = document.getElementById("payBtn");
+
+let walletClient = null;
+let account = null;
+
+function logLine(msg, cls = "") {
+  const span = document.createElement("span");
+  if (cls) span.className = cls;
+  span.textContent = `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+  log.appendChild(span);
+  log.scrollTop = log.scrollHeight;
+}
+
+function getProvider() {
+  // Phantom injects window.phantom.ethereum, may also grab window.ethereum.
+  if (window.phantom && window.phantom.ethereum) return window.phantom.ethereum;
+  if (window.ethereum) return window.ethereum;
+  return null;
+}
+
+connectBtn.addEventListener("click", async () => {
+  try {
+    const provider = getProvider();
+    if (!provider) {
+      logLine("No EVM provider detected. Please install Phantom or MetaMask extension.", "err");
+      return;
+    }
+    logLine("Requesting accounts from injected provider...");
+    const accounts = await provider.request({ method: "eth_requestAccounts" });
+    account = accounts[0];
+    logLine(`Connected: ${account}`, "ok");
+
+    // Switch to Base if needed.
+    const chainId = await provider.request({ method: "eth_chainId" });
+    if (chainId !== "0x2105") {
+      logLine(`Wrong network (current: ${chainId}, want Base 0x2105). Requesting switch...`, "warn");
+      try {
+        await provider.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: "0x2105" }],
+        });
+        logLine("Switched to Base.", "ok");
+      } catch (e) {
+        logLine(`Switch failed: ${e.message}. Please switch manually in Phantom to Base mainnet.`, "err");
+        return;
+      }
+    } else {
+      logLine("Already on Base.", "ok");
+    }
+
+    walletClient = createWalletClient({
+      account,
+      chain: base,
+      transport: custom(provider),
+    });
+    payBtn.disabled = false;
+    connectBtn.disabled = true;
+    logLine("Wallet client ready. You can pay now.", "ok");
+  } catch (err) {
+    logLine(`Connect error: ${err.message}`, "err");
+  }
+});
+
+payBtn.addEventListener("click", async () => {
+  if (!walletClient) {
+    logLine("Connect first.", "err");
+    return;
+  }
+  payBtn.disabled = true;
+  try {
+    logLine("Wrapping fetch with x402 payment handler...");
+    const fetchWithPayment = wrapFetchWithPayment(window.fetch.bind(window), walletClient);
+    logLine("Posting to /api/v1/skill/scan...");
+    logLine("(Phantom should prompt for signature in a moment)");
+    const res = await fetchWithPayment(
+      "https://trustlayer-production.up.railway.app/api/v1/skill/scan",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: "x402 bootstrap test from TrustLayer pay.html",
+          skill_name: "bootstrap-test",
+        }),
+      }
+    );
+    logLine(`Response status: ${res.status}`, res.ok ? "ok" : "err");
+    const txt = await res.text();
+    logLine(`Response body (truncated): ${txt.slice(0, 600)}`);
+    logLine("Done. Check Railway logs to confirm the payment was settled.", "ok");
+  } catch (err) {
+    logLine(`Pay error: ${err.message}`, "err");
+    payBtn.disabled = false;
+  }
+});
+
+logLine("Page loaded. Click Connect Phantom to begin.");
+</script>
+</body>
+</html>
