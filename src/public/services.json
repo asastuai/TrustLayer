@@ -1,0 +1,107 @@
+{
+  "id": "trustlayer",
+  "name": "TrustLayer",
+  "description": "Trust infrastructure for the agent economy. Four sub-services in one API: skill audit (ClawScan), agent QA testing (QABot), SLA monitor for x402 services (Sentinel), agent-to-agent escrow (ClawVault). Every paid response carries a Proof-of-Context attestation typed as f_c, f_m, or f_s with a declared freshness horizon.",
+  "url": "https://trustlayer-production.up.railway.app",
+  "category": "infra",
+  "x402Version": 2,
+  "networks": ["eip155:8453"],
+  "operator": {
+    "name": "Juan Cruz Maisú",
+    "github": "https://github.com/asastuai",
+    "publicKey": "https://trustlayer-production.up.railway.app/api/v1/poc/public-key"
+  },
+  "endpoints": [
+    {
+      "path": "/api/v1/skill/scan",
+      "method": "POST",
+      "price": "$0.01",
+      "asset": "USDC",
+      "network": "eip155:8453",
+      "description": "ClawScan: quick security scan of an AI agent skill for malware, prompt injection, credential theft, supply-chain attacks. Returns a structured safety score plus an f_c PoC attestation."
+    },
+    {
+      "path": "/api/v1/skill/verify",
+      "method": "POST",
+      "price": "$2.00",
+      "asset": "USDC",
+      "network": "eip155:8453",
+      "description": "ClawScan: deep verification of a skill plus issued Verified badge. Cached 24h on success. f_c PoC attestation."
+    },
+    {
+      "path": "/api/v1/qa/test",
+      "method": "POST",
+      "price": "$0.05",
+      "asset": "USDC",
+      "network": "eip155:8453",
+      "description": "QABot: quick test suite against an agent endpoint. Tests availability, x402 compliance, basic safety. f_m PoC attestation."
+    },
+    {
+      "path": "/api/v1/qa/full",
+      "method": "POST",
+      "price": "$0.50",
+      "asset": "USDC",
+      "network": "eip155:8453",
+      "description": "QABot: full safety + accuracy test suite for an agent. Multi-prompt evaluation, response verification. f_m PoC attestation."
+    },
+    {
+      "path": "/api/v1/qa/adversarial",
+      "method": "POST",
+      "price": "$1.00",
+      "asset": "USDC",
+      "network": "eip155:8453",
+      "description": "QABot: adversarial red-team testing of an agent for prompt injection, jailbreak resistance, data exfiltration. f_m PoC attestation."
+    },
+    {
+      "path": "/api/v1/sla/report",
+      "method": "GET",
+      "price": "$0.01",
+      "asset": "USDC",
+      "network": "eip155:8453",
+      "description": "Sentinel: detailed SLA report for a registered x402 service with uptime history, latency distribution, reliability score. f_c PoC attestation."
+    },
+    {
+      "path": "/api/v1/escrow/create",
+      "method": "POST",
+      "price": "$0.10",
+      "asset": "USDC",
+      "network": "eip155:8453",
+      "description": "ClawVault (centralized beta): create an escrow agreement between two agents. Holds USDC until delivery is verified or dispute is filed. f_s PoC attestation."
+    },
+    {
+      "path": "/api/v1/escrow/dispute",
+      "method": "POST",
+      "price": "$0.50",
+      "asset": "USDC",
+      "network": "eip155:8453",
+      "description": "ClawVault (centralized beta): file a dispute on an active escrow. Triggers operator review and structured resolution. f_s PoC attestation."
+    }
+  ],
+  "freeEndpoints": [
+    "/api/v1/info",
+    "/api/v1/health",
+    "/api/v1/stats",
+    "/api/v1/poc/public-key",
+    "/api/v1/sla/live",
+    "/api/v1/sla/leaderboard",
+    "/api/v1/sla/register",
+    "/api/v1/skill/lookup",
+    "/api/v1/qa/lookup",
+    "/api/v1/escrow/:id"
+  ],
+  "links": {
+    "source": "https://github.com/asastuai/TrustLayer",
+    "docs": "https://trustlayer-production.up.railway.app/docs",
+    "status": "https://trustlayer-production.up.railway.app/status",
+    "license": "MIT",
+    "aletheiaStack": "https://github.com/asastuai/aletheia",
+    "proofOfContextSpec": "https://github.com/asastuai/proof-of-context/blob/main/SPEC-WIRE-FORMAT-v0.1.md"
+  },
+  "differentiators": [
+    "Every paid response wrapped with Ed25519-signed Proof-of-Context attestation (when POC_SIGNING_KEY is configured) over a canonical-JSON SHA-256 hash with declared freshness horizon",
+    "Cross-language hash equality verified against four reference implementations of the wire format v0.1 spec",
+    "Differentiated freshness types per sub-service (f_c for ClawScan and Sentinel, f_m for QABot, f_s for ClawVault) so consumers know exactly which dimension of context was checked",
+    "First x402 service to monitor x402 services (Sentinel as meta-service for the agentic economy)",
+    "First-party operator, single author, fully open source"
+  ]
+}

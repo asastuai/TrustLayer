@@ -1,0 +1,49 @@
+# TrustLayer
+
+> Trust infrastructure for the agent economy on Base L2. Four sub-services in one x402-paid API. Every paid response carries a Proof-of-Context attestation.
+
+TrustLayer is the trust layer of the [Aletheia](https://github.com/asastuai/aletheia) stack for the agentic economics. It answers four questions agents need cheap verifiable answers to before they can transact at scale:
+
+- **Before install:** is this skill safe? → ClawScan
+- **After deploy:** does this agent behave correctly? → QABot
+- **In production:** will the service stay up? → Sentinel
+- **During payment:** can I recover if the counterparty defaults? → ClawVault escrow
+
+Every paid response carries a typed Proof-of-Context attestation (f_c for ClawScan and Sentinel, f_m for QABot, f_s for ClawVault) so the consumer can refuse to settle on stale or untyped answers.
+
+## Service manifest
+
+For machine-readable endpoint, pricing, and metadata, please see [`/services.json`](https://trustlayer-production.up.railway.app/services.json).
+
+## Payment
+
+All paid endpoints are x402 over USDC on Base L2. No accounts. No API keys. No subscriptions. The agent pays per request, gets the response, and verifies the PoC attestation against the operator's public key.
+
+## Endpoints
+
+- **ClawScan** (skill auditor)
+  - `POST /api/v1/skill/scan` ($0.01) — quick security scan
+  - `POST /api/v1/skill/verify` ($2.00) — deep verification with badge
+- **QABot** (agent testing)
+  - `POST /api/v1/qa/test` ($0.05) — quick test suite
+  - `POST /api/v1/qa/full` ($0.50) — full safety + accuracy
+  - `POST /api/v1/qa/adversarial` ($1.00) — adversarial red-team
+- **Sentinel** (SLA monitor for x402 services)
+  - `GET /api/v1/sla/report` ($0.01) — detailed SLA report
+- **ClawVault** (agent escrow, centralized beta)
+  - `POST /api/v1/escrow/create` ($0.10)
+  - `POST /api/v1/escrow/dispute` ($0.50)
+
+## Operator
+
+Juan Cruz Maisú, independent researcher, Buenos Aires. First-party operator, single author, fully open source.
+
+- Source: <https://github.com/asastuai/TrustLayer>
+- Aletheia stack: <https://github.com/asastuai/aletheia>
+- Proof of Context spec: <https://github.com/asastuai/proof-of-context>
+
+## Honest scope
+
+What this provides: x402-paid endpoints with Ed25519-signed PoC attestations carrying declared freshness horizons.
+
+What this does NOT provide: cross-protocol reputation portability (planned), on-chain escrow (currently centralized beta), real-time WebSocket feeds, multi-chain coverage (Base only at this time).

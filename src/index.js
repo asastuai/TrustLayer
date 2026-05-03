@@ -71,7 +71,7 @@ app.use((req, res, next) => {
 // ============================================
 // STATIC + FREE PAGES — before payment middleware
 // ============================================
-app.use(express.static(join(__dirname, "public")));
+app.use(express.static(join(__dirname, "public"), { dotfiles: "allow" }));
 app.get("/", (req, res) => res.sendFile(join(__dirname, "public", "index.html")));
 app.get("/docs", (req, res) => res.sendFile(join(__dirname, "public", "docs.html")));
 app.get("/status", (req, res) => res.sendFile(join(__dirname, "public", "status.html")));

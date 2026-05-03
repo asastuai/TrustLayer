@@ -1,0 +1,20 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "TrustLayer",
+  "name_for_model": "trustlayer",
+  "description_for_human": "Trust infrastructure for the agent economy. Skill audit, agent QA testing, SLA monitor for x402 services, agent-to-agent escrow. Every paid response carries a Proof-of-Context attestation.",
+  "description_for_model": "TrustLayer exposes four sub-services that AI agents need before they can transact safely with other agents and services: ClawScan (audits agent skills for malware, prompt injection, credential theft), QABot (tests agent endpoints for accuracy, safety, adversarial robustness), Sentinel (monitors uptime and reliability of x402 services), and ClawVault (escrow for agent-to-agent payments). All paid endpoints are x402-native on Base L2 and return responses wrapped with an Ed25519-signed Proof-of-Context attestation typed as f_c (computational), f_m (model), or f_s (settlement) with a declared freshness horizon. Service catalog at https://trustlayer-production.up.railway.app/services.json.",
+  "auth": {
+    "type": "none"
+  },
+  "api": {
+    "type": "x402",
+    "url": "https://trustlayer-production.up.railway.app/services.json",
+    "x402_version": 2,
+    "network": "eip155:8453",
+    "asset": "USDC"
+  },
+  "logo_url": "https://trustlayer-production.up.railway.app/logo.png",
+  "contact_email": "juancmaisu@outlook.com",
+  "legal_info_url": "https://github.com/asastuai/TrustLayer/blob/main/LICENSE"
+}
