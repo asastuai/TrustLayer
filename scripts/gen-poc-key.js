@@ -9,12 +9,13 @@
  */
 
 import { randomBytes } from "node:crypto";
-import { getPublicKeyAsync } from "@noble/ed25519";
-import * as ed from "@noble/ed25519";
+import { getPublicKeyAsync, etc } from "@noble/ed25519";
 import { sha512 } from "@noble/hashes/sha2";
 
-ed.hashes ??= {};
-ed.hashes.sha512 = (...m) => sha512(ed.utils.concatBytes(...m));
+// Wire sha512 via the etc namespace. Compatible with @noble/ed25519 v2.x and v3.x
+// (the v3 release sealed the older `ed.hashes` namespace; etc.sha512Async is the
+// stable surface across both).
+etc.sha512Async = async (...m) => sha512(etc.concatBytes(...m));
 
 function toHex(bytes) {
   return Array.from(bytes)
