@@ -104,6 +104,7 @@ const PAID_ROUTES = {
   "GET /api/v1/sla/report":        { price: config.pricing.slaReport,    desc: "Detailed SLA report with uptime history" },
   "POST /api/v1/escrow/create":    { price: config.pricing.escrowCreate, desc: "Create a ClawVault escrow agreement" },
   "POST /api/v1/escrow/dispute":   { price: config.pricing.escrowDispute, desc: "File a dispute on a ClawVault escrow" },
+  "GET /api/v1/reputation/aggregate": { price: config.pricing.reputationAggregate, desc: "Aggregate agent reputation across multiple oracles (TrustLayer + thetrustlayer + 8k4protocol + AgentCrush + mako)" },
 };
 
 function priceToAmount(priceStr) {

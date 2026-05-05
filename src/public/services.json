@@ -75,6 +75,14 @@
       "asset": "USDC",
       "network": "eip155:8453",
       "description": "ClawVault (centralized beta): file a dispute on an active escrow. Triggers operator review and structured resolution. f_s PoC attestation."
+    },
+    {
+      "path": "/api/v1/reputation/aggregate",
+      "method": "GET",
+      "price": "$0.005",
+      "asset": "USDC",
+      "network": "eip155:8453",
+      "description": "Reputation Aggregator: queries multiple agent reputation oracles in parallel (TrustLayer internal + thetrustlayer + 8k4protocol + AgentCrush + mako) and returns a normalized weighted aggregate score plus the individual provider responses. f_i PoC attestation."
     }
   ],
   "freeEndpoints": [

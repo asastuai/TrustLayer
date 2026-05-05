@@ -32,6 +32,9 @@ export const config = {
     // Escrow
     escrowCreate: "$0.10",
     escrowDispute: "$0.50",
+
+    // Reputation Aggregator — meta-service across multiple oracles
+    reputationAggregate: "$0.005",
   },
 };
 

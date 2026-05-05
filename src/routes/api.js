@@ -13,6 +13,7 @@ import {
   getGlobalStats, incrementEscrows,
 } from "../data/registry.js";
 import { attest, getPublicKey } from "../utils/poc.js";
+import { aggregateReputation } from "../services/reputation/aggregator.js";
 
 const router = Router();
 
@@ -56,6 +57,10 @@ router.get("/api/v1/info", (req, res) => {
         trust_model: "⚠️ CENTRALIZED BETA — TrustLayer operates as custodian during escrow. V2 will use on-chain smart contract. Use for small amounts only.",
         version: "v1-centralized-beta",
       },
+      reputation_aggregator: {
+        description: "Meta-oracle: aggregates agent reputation across multiple providers (TrustLayer + thetrustlayer + 8k4protocol + AgentCrush + mako) into a weighted score with per-provider transparency.",
+        trust_model: "Queries upstream providers in parallel with timeout. Each upstream score normalized to 0..1000. Aggregate is weighted: internal=0.30, externals share remaining 0.70 equally. Failed upstreams excluded from aggregate but reported with error in response.",
+      },
     },
     free_endpoints: [
       "GET /api/v1/info", "GET /api/v1/health", "GET /api/v1/stats",
@@ -72,6 +77,7 @@ router.get("/api/v1/info", (req, res) => {
       { path: "GET /api/v1/sla/report?url=X", price: "$0.01 USDC", service: "sentinel" },
       { path: "POST /api/v1/escrow/create", price: "$0.10 USDC", service: "clawvault (centralized beta)" },
       { path: "POST /api/v1/escrow/dispute", price: "$0.50 USDC", service: "clawvault (centralized beta)" },
+      { path: "GET /api/v1/reputation/aggregate?address=X", price: "$0.005 USDC", service: "reputation_aggregator" },
     ],
   });
 });
@@ -276,6 +282,30 @@ router.post("/api/v1/escrow/dispute", async (req, res) => {
     const result = disputeEscrow(escrow_id, address, reason, evidence);
     await sendAttested(res, result, "/api/v1/escrow/dispute", "f_s", 86400);
   } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// ============================================
+// 🌐 REPUTATION AGGREGATOR — meta-oracle across providers
+// ============================================
+
+router.get("/api/v1/reputation/aggregate", async (req, res) => {
+  try {
+    const { address } = req.query;
+    if (!address) {
+      return res.status(400).json({
+        error: "Missing 'address' query parameter",
+        example: "/api/v1/reputation/aggregate?address=0x7c7Faf397dAC2a9Ae6FD902B47e36810913ca644",
+      });
+    }
+    const result = await aggregateReputation(address, null /* registry — to-wire */);
+    if (result.error) {
+      return res.status(400).json(result);
+    }
+    await sendAttested(res, result, "/api/v1/reputation/aggregate", "f_i", 60);
+  } catch (err) {
+    console.error("Error in /reputation/aggregate:", err.message);
+    res.status(500).json({ error: "Aggregation failed", detail: err.message });
+  }
 });
 
 // ============================================
