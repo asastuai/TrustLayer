@@ -3,37 +3,32 @@
  * oracles in parallel and returns a normalized aggregate plus the individual
  * scores, wrapped in a Proof-of-Context f_i attestation.
  *
- * Adapters are pluggable. Each adapter implements:
- *   async fetch(address) → { score, tier, raw, source_url, error? }
+ * Per-upstream adapters know each upstream's actual schema. Where an upstream
+ * requires outbound x402 payment we currently skip and report explicitly,
+ * pending an outbound-payment capability on the TrustLayer service.
  *
- * URLs are configured via env vars so individual upstream integrations can be
- * tuned per deployment without code changes.
+ * Upstreams currently implemented:
+ *   - trustlayer-internal  : own ClawScan + Sentinel registry (no network)
+ *   - 8k4protocol           : queries /agents/top free endpoint, looks up by wallet
+ *   - agentcrush            : free MCP-style /api/agent/{handle}/trust-summary
+ *                             (requires handle param; skipped if address-only)
+ *   - thetrustlayer         : env-configurable URL, generic GET /{address}
+ *   - mako                  : env-configurable URL, generic GET /{address}
  */
 
 const TIMEOUT_MS = 3000;
-
-// Score normalization — every adapter must return a 0..1000 score.
-// Aggregate weighting: our own internal score has weight 0.30, each external
-// has weight equal share of the remaining 0.70.
 const OWN_WEIGHT = 0.30;
 
-/**
- * Generic timeout wrapper for fetch with abort control.
- */
 async function fetchWithTimeout(url, options = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const res = await fetch(url, { ...options, signal: controller.signal });
-    return res;
+    return await fetch(url, { ...options, signal: controller.signal });
   } finally {
     clearTimeout(timer);
   }
 }
 
-/**
- * Tier label from numeric score, 0..1000 scale.
- */
 function tierFromScore(score) {
   if (score == null) return null;
   if (score >= 800) return "verified";
@@ -44,17 +39,11 @@ function tierFromScore(score) {
 }
 
 /**
- * Internal TrustLayer adapter.
- * Combines the latest ClawScan trust_score (if scanned) and the latest
- * Sentinel SLA reliability score (if monitored), into a single 0..1000 score.
- *
- * If we have neither, returns score = null with reason "no record".
+ * Internal TrustLayer adapter. Combines ClawScan + Sentinel local data.
+ * Returns null score if no record exists for the address.
  */
 async function fetchInternal(address, registry) {
   try {
-    // Lookup the address in our own ClawScan registry by skill association.
-    // For now: if no record, return null. Future: link ClawScan results to
-    // address via on-chain agent registration.
     const internalRecord = registry?.lookupByAddress?.(address);
     if (!internalRecord) {
       return {
@@ -63,10 +52,10 @@ async function fetchInternal(address, registry) {
         score: null,
         tier: null,
         raw: null,
-        error: "no internal record for this address",
+        error: "no internal record for this address (ClawScan + Sentinel registry empty for it)",
       };
     }
-    const score = Math.round(internalRecord.score * 10); // assume 0..100 → 0..1000
+    const score = Math.round(internalRecord.score * 10);
     return {
       source: "trustlayer-internal",
       source_url: "self",
@@ -86,13 +75,129 @@ async function fetchInternal(address, registry) {
 }
 
 /**
- * External upstream adapter — generic JSON GET with score normalization
- * heuristic.
- *
- * If the configured URL env var is missing, returns "not configured" so the
- * endpoint stays functional during phased integration.
+ * 8k4protocol adapter. Uses the free /agents/top endpoint to scan for the
+ * target wallet. The paid /wallet/{wallet}/score endpoint requires outbound
+ * x402 payment which is not yet wired on the TrustLayer service.
  */
-async function fetchExternal(name, urlEnvVar, address) {
+async function fetch8k4(address) {
+  const baseUrl = process.env.EIGHTK4_URL || "https://api.8k4protocol.com";
+  const url = `${baseUrl.replace(/\/$/, "")}/agents/top?limit=200&chain=eip155:8453`;
+  try {
+    const res = await fetchWithTimeout(url, {
+      headers: { Accept: "application/json", "User-Agent": "TrustLayer-Aggregator/1.0" },
+    });
+    if (!res.ok) {
+      return {
+        source: "8k4protocol",
+        source_url: url,
+        score: null,
+        tier: null,
+        error: `upstream ${res.status}`,
+      };
+    }
+    const list = await res.json();
+    const items = Array.isArray(list) ? list : list?.results || list?.agents || [];
+    const lower = address.toLowerCase();
+    const match = items.find(
+      (item) =>
+        (item.agent_id || "").toLowerCase().includes(lower) ||
+        (item.global_id || "").toLowerCase().includes(lower) ||
+        (item.wallet || "").toLowerCase() === lower
+    );
+    if (!match) {
+      return {
+        source: "8k4protocol",
+        source_url: url,
+        score: null,
+        tier: null,
+        error: "address not in top-200 agents (paid /wallet/{wallet}/score endpoint requires outbound x402 payment, not yet wired)",
+      };
+    }
+    let score = typeof match.score === "number" ? match.score : null;
+    if (score != null && score <= 100 && score >= 0) score = Math.round(score * 10);
+    return {
+      source: "8k4protocol",
+      source_url: url,
+      score,
+      tier: match.score_tier || tierFromScore(score),
+      raw: match,
+    };
+  } catch (err) {
+    return {
+      source: "8k4protocol",
+      source_url: url,
+      score: null,
+      tier: null,
+      error: err.name === "AbortError" ? "timeout" : err.message,
+    };
+  }
+}
+
+/**
+ * AgentCrush adapter. Endpoint queries by HANDLE, not address. Caller must
+ * supply ?handle=X for AgentCrush data to be queryable. The free MCP path
+ * is `lookup_agent`; the paid REST endpoint is /api/agent/{handle}/trust-summary
+ * at $0.02 (requires outbound x402 payment).
+ */
+async function fetchAgentCrush(handle) {
+  if (!handle) {
+    return {
+      source: "agentcrush",
+      source_url: null,
+      score: null,
+      tier: null,
+      error: "agentcrush requires a `handle` query parameter (not an address). Pass &handle=NAME to enable this provider.",
+    };
+  }
+  const baseUrl = process.env.AGENTCRUSH_URL || "https://www.agentcrush.xyz";
+  const url = `${baseUrl.replace(/\/$/, "")}/api/agent/${encodeURIComponent(handle)}/trust-summary`;
+  try {
+    const res = await fetchWithTimeout(url, {
+      headers: { Accept: "application/json", "User-Agent": "TrustLayer-Aggregator/1.0" },
+    });
+    if (res.status === 402) {
+      return {
+        source: "agentcrush",
+        source_url: url,
+        score: null,
+        tier: null,
+        error: "agentcrush /trust-summary returned 402 — outbound x402 payment ($0.02) required, not yet wired",
+      };
+    }
+    if (!res.ok) {
+      return {
+        source: "agentcrush",
+        source_url: url,
+        score: null,
+        tier: null,
+        error: `upstream ${res.status}`,
+      };
+    }
+    const json = await res.json();
+    let score = typeof json.score === "number" ? json.score : null;
+    if (score != null && score <= 100 && score >= 0) score = Math.round(score * 10);
+    return {
+      source: "agentcrush",
+      source_url: url,
+      score,
+      tier: json.tier || tierFromScore(score),
+      raw: json,
+    };
+  } catch (err) {
+    return {
+      source: "agentcrush",
+      source_url: url,
+      score: null,
+      tier: null,
+      error: err.name === "AbortError" ? "timeout" : err.message,
+    };
+  }
+}
+
+/**
+ * Generic env-configured upstream adapter (used for thetrustlayer + mako).
+ */
+async function fetchGeneric(name, urlEnvVar, address) {
   const baseUrl = process.env[urlEnvVar];
   if (!baseUrl) {
     return {
@@ -100,12 +205,9 @@ async function fetchExternal(name, urlEnvVar, address) {
       source_url: null,
       score: null,
       tier: null,
-      error: `${urlEnvVar} not configured`,
+      error: `${urlEnvVar} not configured (set the env var to enable this provider)`,
     };
   }
-  // Best-effort URL pattern: append the address as path segment.
-  // Each upstream may use a different shape; production-ready integration
-  // requires per-adapter URL templating once the actual API is known.
   const url = `${baseUrl.replace(/\/$/, "")}/${address}`;
   try {
     const res = await fetchWithTimeout(url, {
@@ -121,18 +223,12 @@ async function fetchExternal(name, urlEnvVar, address) {
       };
     }
     const json = await res.json();
-    // Heuristic score extraction: try common field names.
     let score = null;
     if (typeof json.score === "number") score = json.score;
     else if (typeof json.reputation === "number") score = json.reputation;
     else if (typeof json.trust_score === "number") score = json.trust_score;
     else if (typeof json.rating === "number") score = json.rating;
-
-    // Heuristic normalization: if score appears to be 0..100, scale to 0..1000.
-    if (score != null && score <= 100 && score >= 0) {
-      score = Math.round(score * 10);
-    }
-
+    if (score != null && score <= 100 && score >= 0) score = Math.round(score * 10);
     return {
       source: name,
       source_url: url,
@@ -151,10 +247,6 @@ async function fetchExternal(name, urlEnvVar, address) {
   }
 }
 
-/**
- * Aggregate scores from all providers using weighted average.
- * Providers with score = null are excluded from the aggregate.
- */
 function aggregateScores(providers) {
   const ownProvider = providers.find((p) => p.source === "trustlayer-internal");
   const externals = providers.filter((p) => p.source !== "trustlayer-internal");
@@ -167,7 +259,6 @@ function aggregateScores(providers) {
     weightedSum += ownProvider.score * OWN_WEIGHT;
     totalWeight += OWN_WEIGHT;
   }
-
   if (validExternals.length > 0) {
     const externalWeightShare = (1 - OWN_WEIGHT) / validExternals.length;
     for (const p of validExternals) {
@@ -175,41 +266,30 @@ function aggregateScores(providers) {
       totalWeight += externalWeightShare;
     }
   }
-
   if (totalWeight === 0) return null;
   return Math.round(weightedSum / totalWeight);
 }
 
-/**
- * Build a consensus-summary string for human / agent readability.
- */
 function consensusSummary(providers) {
   const total = providers.length;
   const valid = providers.filter((p) => typeof p.score === "number").length;
   const errors = providers.filter((p) => p.error).length;
-  if (valid === 0) return "no providers returned a score";
+  if (valid === 0) return "no providers returned a score (all unconfigured, errored, or skipped)";
   if (valid === total) return `${valid} of ${total} providers responded`;
-  return `${valid} of ${total} providers responded (${errors} timeouts or errors)`;
+  return `${valid} of ${total} providers responded (${errors} errors / skipped)`;
 }
 
-/**
- * Public entry point. Returns a structured aggregate response — the route
- * handler then wraps it with a PoC f_i attestation via sendAttested().
- */
-export async function aggregateReputation(address, registry) {
+export async function aggregateReputation(address, registry, options = {}) {
   if (!address || typeof address !== "string" || !address.startsWith("0x")) {
-    return {
-      error: "address must be a 0x-prefixed hex string",
-      address,
-    };
+    return { error: "address must be a 0x-prefixed hex string", address };
   }
 
   const fetches = await Promise.all([
     fetchInternal(address, registry),
-    fetchExternal("thetrustlayer", "THETRUSTLAYER_URL", address),
-    fetchExternal("8k4protocol", "EIGHTK4_URL", address),
-    fetchExternal("agentcrush", "AGENTCRUSH_URL", address),
-    fetchExternal("mako", "MAKO_URL", address),
+    fetchGeneric("thetrustlayer", "THETRUSTLAYER_URL", address),
+    fetch8k4(address),
+    fetchAgentCrush(options.handle),
+    fetchGeneric("mako", "MAKO_URL", address),
   ]);
 
   const aggregate_score = aggregateScores(fetches);
@@ -217,6 +297,7 @@ export async function aggregateReputation(address, registry) {
 
   return {
     address,
+    handle: options.handle || null,
     aggregate_score,
     tier,
     consensus: consensusSummary(fetches),
@@ -231,6 +312,13 @@ export async function aggregateReputation(address, registry) {
         established: "400-599",
         new: "200-399",
         unverified: "0-199",
+      },
+      provider_status: {
+        "trustlayer-internal": "self-hosted ClawScan + Sentinel registry",
+        thetrustlayer: "env-configured (THETRUSTLAYER_URL); skipped if unset",
+        "8k4protocol": "free /agents/top endpoint scan; paid /wallet/{wallet}/score not wired",
+        agentcrush: "requires &handle= query; paid /trust-summary not wired",
+        mako: "env-configured (MAKO_URL); skipped if unset",
       },
     },
   };

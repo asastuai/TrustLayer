@@ -83,6 +83,14 @@
       "asset": "USDC",
       "network": "eip155:8453",
       "description": "Reputation Aggregator: queries multiple agent reputation oracles in parallel (TrustLayer internal + thetrustlayer + 8k4protocol + AgentCrush + mako) and returns a normalized weighted aggregate score plus the individual provider responses. f_i PoC attestation."
+    },
+    {
+      "path": "/api/v1/inference",
+      "method": "POST",
+      "price": "$0.005",
+      "asset": "USDC",
+      "network": "eip155:8453",
+      "description": "PoC-attested LLM inference: forwards prompt to Anthropic / OpenAI / Gemini and returns the response wrapped with an f_m PoC attestation including model_id, prompt_hash, response_hash, token counts, and model cutoff date. Differentiator: zero of 605 catalogued x402 services on agentic.market currently ship signed inference responses."
     }
   ],
   "freeEndpoints": [

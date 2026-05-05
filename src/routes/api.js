@@ -14,6 +14,7 @@ import {
 } from "../data/registry.js";
 import { attest, getPublicKey } from "../utils/poc.js";
 import { aggregateReputation } from "../services/reputation/aggregator.js";
+import { runInference } from "../services/inference/proxy.js";
 
 const router = Router();
 
@@ -61,6 +62,10 @@ router.get("/api/v1/info", (req, res) => {
         description: "Meta-oracle: aggregates agent reputation across multiple providers (TrustLayer + thetrustlayer + 8k4protocol + AgentCrush + mako) into a weighted score with per-provider transparency.",
         trust_model: "Queries upstream providers in parallel with timeout. Each upstream score normalized to 0..1000. Aggregate is weighted: internal=0.30, externals share remaining 0.70 equally. Failed upstreams excluded from aggregate but reported with error in response.",
       },
+      inference_proxy: {
+        description: "PoC-attested LLM inference: forwards prompt to Anthropic / OpenAI / Gemini and returns response wrapped with f_m attestation including model_id, prompt_hash, response_hash, token counts, model cutoff date.",
+        trust_model: "Differentiator: zero of 605 catalogued x402 services on agentic.market currently ship signed inference responses. The PoC block lets a downstream consumer verify provenance of the response (which model, on what prompt, with what cutoff).",
+      },
     },
     free_endpoints: [
       "GET /api/v1/info", "GET /api/v1/health", "GET /api/v1/stats",
@@ -78,6 +83,7 @@ router.get("/api/v1/info", (req, res) => {
       { path: "POST /api/v1/escrow/create", price: "$0.10 USDC", service: "clawvault (centralized beta)" },
       { path: "POST /api/v1/escrow/dispute", price: "$0.50 USDC", service: "clawvault (centralized beta)" },
       { path: "GET /api/v1/reputation/aggregate?address=X", price: "$0.005 USDC", service: "reputation_aggregator" },
+      { path: "POST /api/v1/inference", price: "$0.005 USDC", service: "inference_proxy" },
     ],
   });
 });
@@ -290,14 +296,15 @@ router.post("/api/v1/escrow/dispute", async (req, res) => {
 
 router.get("/api/v1/reputation/aggregate", async (req, res) => {
   try {
-    const { address } = req.query;
+    const { address, handle } = req.query;
     if (!address) {
       return res.status(400).json({
         error: "Missing 'address' query parameter",
         example: "/api/v1/reputation/aggregate?address=0x7c7Faf397dAC2a9Ae6FD902B47e36810913ca644",
+        optional: "Pass &handle=NAME to enable AgentCrush provider (queries by handle, not address).",
       });
     }
-    const result = await aggregateReputation(address, null /* registry — to-wire */);
+    const result = await aggregateReputation(address, null /* registry — to-wire */, { handle });
     if (result.error) {
       return res.status(400).json(result);
     }
@@ -305,6 +312,24 @@ router.get("/api/v1/reputation/aggregate", async (req, res) => {
   } catch (err) {
     console.error("Error in /reputation/aggregate:", err.message);
     res.status(500).json({ error: "Aggregation failed", detail: err.message });
+  }
+});
+
+// ============================================
+// 🧠 INFERENCE PROXY — LLM call with f_m PoC attestation
+// ============================================
+
+router.post("/api/v1/inference", async (req, res) => {
+  try {
+    const { provider, model, prompt, max_tokens } = req.body || {};
+    const result = await runInference({ provider, model, prompt, max_tokens });
+    if (result.error) {
+      return res.status(400).json(result);
+    }
+    await sendAttested(res, result, "/api/v1/inference", "f_m", 86400);
+  } catch (err) {
+    console.error("Error in /inference:", err.message);
+    res.status(500).json({ error: "Inference failed", detail: err.message });
   }
 });
 

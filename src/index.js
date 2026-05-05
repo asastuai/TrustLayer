@@ -105,6 +105,7 @@ const PAID_ROUTES = {
   "POST /api/v1/escrow/create":    { price: config.pricing.escrowCreate, desc: "Create a ClawVault escrow agreement" },
   "POST /api/v1/escrow/dispute":   { price: config.pricing.escrowDispute, desc: "File a dispute on a ClawVault escrow" },
   "GET /api/v1/reputation/aggregate": { price: config.pricing.reputationAggregate, desc: "Aggregate agent reputation across multiple oracles (TrustLayer + thetrustlayer + 8k4protocol + AgentCrush + mako)" },
+  "POST /api/v1/inference":          { price: config.pricing.inferencePocLlm, desc: "Inference proxy to upstream LLM (Anthropic / OpenAI / Gemini) with f_m PoC attestation over the response" },
 };
 
 function priceToAmount(priceStr) {

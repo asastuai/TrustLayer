@@ -35,6 +35,9 @@ export const config = {
 
     // Reputation Aggregator — meta-service across multiple oracles
     reputationAggregate: "$0.005",
+
+    // Inference proxy with PoC f_m attestation
+    inferencePocLlm: "$0.005",
   },
 };
 
